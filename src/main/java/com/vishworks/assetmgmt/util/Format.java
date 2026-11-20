@@ -12,17 +12,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Formatting helpers that reproduce the Go standard library behaviour the original
- * backend relied on (fmt verbs, math.Round, strconv float formatting, time layouts).
- * Every text the Go code produced (log lines, timeline events, e-mail bodies, PDF
- * report) goes through these helpers so the Java output is identical.
+ * The formatting layer for every text this backend emits: log lines, timeline events,
+ * e-mail bodies, the JSON report and the PDF. Routing all of them through one place keeps
+ * a monetary amount formatted the same way wherever it appears.
+ *
+ * <p>These deliberately do not delegate to {@link String#format}, which differs in ways
+ * that matter here: it rounds half-up on the decimal expansion where {@link #fixed} rounds
+ * half-to-even on the exact binary value ({@code 0.125} → "0.12", not "0.13"), and it
+ * renders large doubles in exponent notation. The exact output is pinned by the fixtures
+ * in {@code src/test/resources/golden} and by {@code FormatTest}.
  */
-public final class GoFmt {
-  private GoFmt() {}
+public final class Format {
+  private Format() {}
 
   // ─── math ──────────────────────────────────────────────────────────────
 
-  /** Go math.Round: round half away from zero (exact on the binary value). */
+  /** Rounds half away from zero, on the exact binary value. */
   public static double round(double x) {
     if (Double.isNaN(x) || Double.isInfinite(x)) {
       return x;
@@ -31,30 +36,30 @@ public final class GoFmt {
     return (r == 0 && (x < 0 || 1 / x < 0)) ? -0.0 : r;
   }
 
-  /** round2 from handlers.go: math.Round(f*100)/100. */
+  /** Rounds a monetary amount to cents: {@code round(f * 100) / 100}. */
   public static double round2(double f) {
     return round(f * 100) / 100;
   }
 
   // ─── floats ────────────────────────────────────────────────────────────
 
-  /** Go fmt %.{prec}f — the exact binary value rounded half-to-even (strconv semantics). */
+  /** Fixed-point with {@code prec} decimals: the exact binary value, rounded half-to-even. */
   public static String fixed(double x, int prec) {
     if (Double.isNaN(x)) return "NaN";
     if (Double.isInfinite(x)) return x > 0 ? "+Inf" : "-Inf";
     String s = new BigDecimal(x).setScale(prec, RoundingMode.HALF_EVEN).toPlainString();
     boolean neg = x < 0 || (x == 0 && 1 / x < 0);
-    if (neg && !s.startsWith("-")) s = "-" + s; // Go keeps the sign of -0 and of values rounding to 0
+    if (neg && !s.startsWith("-")) s = "-" + s; // keep the sign of -0 and of values that round to 0
     return s;
   }
 
-  /** strconv.FormatFloat(f, 'f', -1, 64): shortest representation, plain notation. */
+  /** Shortest representation that round-trips, in plain (non-exponent) notation. */
   public static String shortestPlain(double x) {
     if (x == 0) return (1 / x < 0) ? "-0" : "0";
     return new BigDecimal(Double.toString(x)).stripTrailingZeros().toPlainString();
   }
 
-  /** strconv.FormatFloat(f, 'e', -1, 64): shortest representation, exponent notation (e+06). */
+  /** Shortest representation that round-trips, in exponent notation (e.g. '1.5e+06'). */
   public static String shortestExp(double x) {
     if (x == 0) return ((1 / x < 0) ? "-" : "") + "0e+00";
     BigDecimal bd = new BigDecimal(Double.toString(x)).stripTrailingZeros();
@@ -71,7 +76,10 @@ public final class GoFmt {
     return sb.toString();
   }
 
-  /** encoding/json float64 encoding. */
+  /**
+   * How {@link com.vishworks.assetmgmt.json.JsonCodec} writes a double: plain notation, falling
+   * back to exponent form only below 1e-6 or at/above 1e21 (where plain form would be absurd).
+   */
   public static String jsonFloat(double f) {
     if (Double.isNaN(f) || Double.isInfinite(f)) {
       throw new IllegalArgumentException("json: unsupported value: " + fixedSpecial(f));
@@ -80,7 +88,7 @@ public final class GoFmt {
     if (abs != 0 && (abs < 1e-6 || abs >= 1e21)) {
       String s = shortestExp(f);
       int n = s.length();
-      // clean up e-09 to e-9 (as encoding/json does)
+      // trim the padded exponent: e-09 becomes e-9
       if (n >= 4 && s.charAt(n - 4) == 'e' && s.charAt(n - 3) == '-' && s.charAt(n - 2) == '0') {
         s = s.substring(0, n - 2) + s.charAt(n - 1);
       }
@@ -93,7 +101,7 @@ public final class GoFmt {
     return Double.isNaN(f) ? "NaN" : (f > 0 ? "+Inf" : "-Inf");
   }
 
-  /** fmt %v for a float64 (%g with the shortest representation). */
+  /** A double in its shortest readable form, for interpolation into text. */
   public static String gFloat(double x) {
     if (Double.isNaN(x) || Double.isInfinite(x)) return fixedSpecial(x);
     if (x == 0) return (1 / x < 0) ? "-0" : "0";
@@ -106,11 +114,15 @@ public final class GoFmt {
     return shortestPlain(x);
   }
 
-  // ─── fmt.Sprintf subset ────────────────────────────────────────────────
+  // ─── interpolation ─────────────────────────────────────────────────────
 
   /**
-   * Subset of Go's fmt.Sprintf used by the original code: verbs %s %v %d %f %q %%,
-   * flags '-' and '0', width and precision.
+   * Interpolates a format string: verbs %s %v %d %f %q %%, the '-', '0' and '+' flags, plus
+   * width and precision. %f routes through {@link #fixed} and %v through {@link #v}, which is
+   * the whole point — it keeps the column alignment in the PDF and the rounding of every
+   * amount consistent with the rest of this class. A malformed format or a wrong argument
+   * count is rendered inline (e.g. "%!d(hello)") rather than thrown, so a logging mistake
+   * can never take down a worker.
    */
   public static String sprintf(String format, Object... args) {
     StringBuilder out = new StringBuilder();
@@ -213,7 +225,10 @@ public final class GoFmt {
     return " ".repeat(fill) + s;
   }
 
-  /** fmt %v. */
+  /**
+   * Renders a value for interpolation: null as "&lt;nil&gt;", a collection as "[a b c]", a map as
+   * "map[k:v]" with keys sorted, doubles via {@link #gFloat}.
+   */
   public static String v(Object o) {
     if (o == null) return "<nil>";
     if (o instanceof Double d) return gFloat(d);
@@ -241,12 +256,12 @@ public final class GoFmt {
     return o.toString();
   }
 
-  /** %v of a Go []string that may be nil. */
+  /** Renders a possibly-null list of strings, treating null as empty. */
   public static String slice(List<String> l) {
     return v(l == null ? List.of() : l);
   }
 
-  /** strconv.Quote (ASCII subset sufficient for identifiers). */
+  /** Double-quotes a string and escapes it, for identifiers in error and log messages. */
   public static String quote(String s) {
     StringBuilder sb = new StringBuilder("\"");
     for (int i = 0; i < s.length(); i++) {
@@ -268,17 +283,17 @@ public final class GoFmt {
 
   // ─── time ──────────────────────────────────────────────────────────────
 
-  /** time.RFC3339 ("2006-01-02T15:04:05Z07:00") of an instant in UTC. */
+  /** RFC 3339 in UTC, to whole seconds (e.g. '2026-11-20T14:05:00Z'). */
   public static String rfc3339Utc(Instant t) {
     return rfc3339(t.atZone(ZoneOffset.UTC), false);
   }
 
-  /** time.RFC3339Nano: fractional seconds with trailing zeros removed. */
+  /** RFC 3339 with fractional seconds, trailing zeros removed. */
   public static String rfc3339Nano(ZonedDateTime t) {
     return rfc3339(t, true);
   }
 
-  /** pgx decodes a Postgres "timestamp" into a UTC time.Time; encoding/json uses RFC3339Nano. */
+  /** A Postgres "timestamp" column, which carries no zone, read as UTC. */
   public static String rfc3339Nano(LocalDateTime t) {
     return rfc3339(t.atZone(ZoneOffset.UTC), true);
   }
@@ -304,7 +319,7 @@ public final class GoFmt {
     return sb.toString();
   }
 
-  /** time.Duration.String() for a duration already rounded to whole seconds. */
+  /** A duration already rounded to whole seconds, as "1h2m3s" / "2m3s" / "3s". */
   public static String duration(Duration d) {
     long secs = d.getSeconds();
     if (secs == 0 && d.getNano() == 0) return "0s";
@@ -318,7 +333,7 @@ public final class GoFmt {
     return sb.toString();
   }
 
-  /** time.Duration.Round(time.Second). */
+  /** Rounds to the nearest whole second, halves away from zero. */
   public static Duration roundToSecond(Duration d) {
     long millis = d.toMillis();
     long secs = Math.floorDiv(millis + 500, 1000);

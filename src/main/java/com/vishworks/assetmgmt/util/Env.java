@@ -1,6 +1,6 @@
 package com.vishworks.assetmgmt.util;
 
-/** Environment lookup with the same semantics as the Go helper env(k, d): empty counts as unset. */
+/** Environment lookup in which an empty value counts as unset, so a blank var falls back to the default. */
 public final class Env {
   private Env() {}
 

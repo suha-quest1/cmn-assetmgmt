@@ -1,6 +1,6 @@
 package com.vishworks.assetmgmt.camunda;
 
-import com.vishworks.assetmgmt.json.GoJson;
+import com.vishworks.assetmgmt.json.JsonCodec;
 import com.vishworks.assetmgmt.util.Errors;
 import io.camunda.client.CamundaClient;
 import io.camunda.client.CamundaClientBuilder;
@@ -20,19 +20,18 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 
 /**
- * Creation and configuration of the official {@link CamundaClient}; replaces the
- * hand-written REST client in internal/camunda/client.go.
+ * Creation and configuration of the official {@link CamundaClient}.
  *
- * <p>The Go client spoke only to the Orchestration Cluster REST API (/v2). The Java client
- * is therefore configured with {@code preferRestOverGrpc(true)} so every command
- * (deployment, process instance creation, message publication/correlation, job
- * activation/completion/failure, topology) goes over the same REST endpoints, and only
- * {@code CAMUNDA_REST_ADDRESS} is needed — exactly like before.
+ * <p>Configured with {@code preferRestOverGrpc(true)} so every command (deployment, process
+ * instance creation, message publication/correlation, job activation/completion/failure,
+ * topology) goes over the Orchestration Cluster REST API (/v2). That keeps the deployment to
+ * a single endpoint — only {@code CAMUNDA_REST_ADDRESS} is needed, with no separate gRPC
+ * address or port to open.
  */
 public final class Camunda {
   private Camunda() {}
 
-  /** HTTP timeout of the Go client (http.Client{Timeout: 60s}). */
+  /** HTTP timeout for every command. Long enough to cover a cold cluster accepting a deployment. */
   static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
   /**
@@ -48,8 +47,7 @@ public final class Camunda {
         .restAddress(URI.create(rest))
         .preferRestOverGrpc(true)
         .defaultRequestTimeout(REQUEST_TIMEOUT)
-        // Job handlers run on virtual threads: one per activated job, like the goroutine
-        // per job in the Go worker loop.
+        // One virtual thread per activated job, so a slow handler cannot stall the others.
         .jobHandlingExecutor(Executors.newVirtualThreadPerTaskExecutor(), true);
     String user = System.getenv("CAMUNDA_USERNAME");
     if (user != null && !user.isEmpty()) {
@@ -105,9 +103,9 @@ public final class Camunda {
   }
 
   /**
-   * Error text in the format of the Go APIError ("camunda api: HTTP 404: {body}"). For
-   * RFC 9457 problem responses the body is re-serialised from the parsed problem detail
-   * with the field order Camunda uses (type, title, status, detail, instance).
+   * Error text as "camunda api: HTTP 404: {body}". For RFC 9457 problem responses the body is
+   * re-serialised from the parsed problem detail in the field order Camunda uses (type, title,
+   * status, detail, instance), so the message reads the same as the response that produced it.
    */
   public static String message(Throwable t) {
     ProblemException pe = Errors.find(t, ProblemException.class);
@@ -130,12 +128,16 @@ public final class Camunda {
     return Errors.message(t);
   }
 
-  /** Compact JSON without Go's HTML escaping (the Go client embedded the raw response body). */
+  /**
+   * Compact JSON with plain Jackson escaping, deliberately not {@code JsonCodec}: this is an
+   * error body echoed into a message, so '&lt;' and '&amp;' should stay readable rather than
+   * being escaped.
+   */
   private static String rawJson(Map<String, Object> body) {
     try {
       return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(body);
     } catch (Exception e) {
-      return GoJson.marshal(body);
+      return JsonCodec.toJson(body);
     }
   }
 }

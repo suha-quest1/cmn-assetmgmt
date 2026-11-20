@@ -12,8 +12,9 @@ import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
 /**
- * HTTP contract of the mock services and of the Go-ServeMux-compatible router. Expected
- * status codes, headers and bodies are the ones the original Go binaries return.
+ * The HTTP contract of the mock services and the router: the status codes, headers and bodies
+ * that callers depend on. These are asserted exactly, because the error strings also surface
+ * in job incidents.
  */
 class MockServicesTest {
   static final HttpClient C = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();

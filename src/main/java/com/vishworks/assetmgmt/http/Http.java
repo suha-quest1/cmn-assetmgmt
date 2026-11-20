@@ -2,7 +2,7 @@ package com.vishworks.assetmgmt.http;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import com.vishworks.assetmgmt.json.GoJson;
+import com.vishworks.assetmgmt.json.JsonCodec;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -10,14 +10,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
 
 /**
- * Response helpers and server bootstrap reproducing what the Go services got from
- * net/http: writeJSON (json.NewEncoder), http.Error, http.NotFound, http.Redirect and
- * http.ListenAndServe(addr, …) with one concurrent handler per request.
+ * Response helpers and server bootstrap: JSON, plain-text error, 404 and redirect responses,
+ * plus a listener that serves each request on its own virtual thread.
  */
 public final class Http {
   private Http() {}
 
-  /** http.ListenAndServe: ":8090" listens on all interfaces. Requests are served on virtual threads. */
+  /** A bare ":8090" listens on all interfaces. Requests are served on virtual threads. */
   public static HttpServer listen(String addr, com.sun.net.httpserver.HttpHandler handler) throws IOException {
     int colon = addr.lastIndexOf(':');
     String host = colon > 0 ? addr.substring(0, colon) : "";
@@ -49,7 +48,7 @@ public final class Http {
 
   /** writeJSON from cmd/apiserver: Content-Type application/json + json.Encoder output. */
   public static void writeJSON(HttpExchange ex, int code, Object v) throws IOException {
-    send(ex, code, "application/json", GoJson.encode(v));
+    send(ex, code, "application/json", JsonCodec.encode(v));
   }
 
   /** http.Error. */
@@ -86,7 +85,7 @@ public final class Http {
     };
   }
 
-  /** html.EscapeString / the net/http htmlReplacer. */
+  /** Escapes the five characters that matter when interpolating text into HTML. */
   public static String htmlEscape(String s) {
     StringBuilder b = new StringBuilder();
     for (int i = 0; i < s.length(); i++) {

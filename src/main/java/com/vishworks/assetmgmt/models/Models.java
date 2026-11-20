@@ -1,6 +1,6 @@
 package com.vishworks.assetmgmt.models;
 
-/** Process / message / job type identifiers used in the BPMN models (models.go constants). */
+/** Process, message and job-type identifiers shared with the BPMN models in {@code bpmn/}. */
 public final class Models {
   private Models() {}
 

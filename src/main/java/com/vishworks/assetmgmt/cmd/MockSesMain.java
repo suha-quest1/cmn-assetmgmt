@@ -5,9 +5,9 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.vishworks.assetmgmt.http.Http;
 import com.vishworks.assetmgmt.http.Router;
-import com.vishworks.assetmgmt.json.GoJson;
+import com.vishworks.assetmgmt.json.JsonCodec;
 import com.vishworks.assetmgmt.util.Env;
-import com.vishworks.assetmgmt.util.GoFmt;
+import com.vishworks.assetmgmt.util.Format;
 import com.vishworks.assetmgmt.util.Log;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,7 +37,7 @@ public final class MockSesMain {
   }
 
   private static final Object MU = new Object();
-  private static List<Entry> emails; // nil until the first message, like the Go slice
+  private static List<Entry> emails; // stays null until the first message; see the /messages handler
 
   public static void main(String[] args) throws Exception {
     String addr = Env.get("LISTEN_ADDR", ":8081");
@@ -68,7 +68,7 @@ public final class MockSesMain {
         if (emails == null) {
           emails = new ArrayList<>();
         }
-        emails.add(new Entry(GoFmt.rfc3339Nano(ZonedDateTime.now()), p));
+        emails.add(new Entry(Format.rfc3339Nano(ZonedDateTime.now()), p));
       }
       Object type = p == null ? null : p.get("type");
       Object to = p == null ? null : p.get("to");
@@ -79,7 +79,7 @@ public final class MockSesMain {
     mux.handle("GET /emails", r -> {
       byte[] out;
       synchronized (MU) {
-        out = emails == null ? "[]".getBytes(StandardCharsets.UTF_8) : GoJson.encode(emails);
+        out = emails == null ? "[]".getBytes(StandardCharsets.UTF_8) : JsonCodec.encode(emails);
       }
       Http.send(r.ex, 200, "application/json", out);
     });
@@ -93,7 +93,7 @@ public final class MockSesMain {
     if (s.isBlank()) {
       throw new IOException("EOF");
     }
-    Map<String, Object> m = GoJson.MAPPER.readValue(s, new TypeReference<TreeMap<String, Object>>() {});
+    Map<String, Object> m = JsonCodec.MAPPER.readValue(s, new TypeReference<TreeMap<String, Object>>() {});
     return m;
   }
 

@@ -1,9 +1,9 @@
 package com.vishworks.assetmgmt.cmd;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.vishworks.assetmgmt.json.GoJson;
+import com.vishworks.assetmgmt.json.JsonCodec;
 import com.vishworks.assetmgmt.util.Errors;
-import com.vishworks.assetmgmt.util.GoFmt;
+import com.vishworks.assetmgmt.util.Format;
 import com.vishworks.assetmgmt.util.Log;
 import java.io.IOException;
 import java.net.URI;
@@ -32,8 +32,8 @@ import java.util.Set;
  *       gap &gt; 10% → bridge credit-line drawdown
  * </ul>
  *
- * Flags (Go flag syntax: -name value, -name=value, --name): -api, -seconds-per-day,
- * -target, -deadline-days, -gp-decision.
+ * Flags, accepted as -name value, -name=value or --name: -api, -seconds-per-day, -target,
+ * -deadline-days, -gp-decision.
  */
 public final class DemoDriverMain {
   private DemoDriverMain() {}
@@ -45,17 +45,17 @@ public final class DemoDriverMain {
   static <T> T call(String method, String path, Object in, Class<T> out) throws IOException, InterruptedException {
     HttpRequest.BodyPublisher body = in == null
         ? HttpRequest.BodyPublishers.noBody()
-        : HttpRequest.BodyPublishers.ofString(GoJson.marshal(in), StandardCharsets.UTF_8);
+        : HttpRequest.BodyPublishers.ofString(JsonCodec.toJson(in), StandardCharsets.UTF_8);
     HttpRequest req = HttpRequest.newBuilder(URI.create(api + path))
         .header("Content-Type", "application/json")
         .method(method, body)
         .build();
     HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     if (resp.statusCode() >= 300) {
-      throw new IOException(GoFmt.sprintf("%s %s: HTTP %d %s", method, path, resp.statusCode(), resp.body()));
+      throw new IOException(Format.sprintf("%s %s: HTTP %d %s", method, path, resp.statusCode(), resp.body()));
     }
     if (out != null) {
-      return GoJson.unmarshal(resp.body(), out);
+      return JsonCodec.fromJson(resp.body(), out);
     }
     return null;
   }
@@ -111,7 +111,7 @@ public final class DemoDriverMain {
     for (int i = 0; i < args.length; i++) {
       String a = args[i];
       if (!a.startsWith("-") || a.equals("-") ) {
-        break; // first non-flag argument stops parsing (Go flag package)
+        break; // the first non-flag argument ends flag parsing
       }
       if (a.equals("--")) {
         break;
@@ -259,14 +259,14 @@ public final class DemoDriverMain {
         }
       }
       if (d.call.status.equals("completed") || d.call.status.equals("cancelled")) {
-        Log.printf("■ done in %s. Report: %s/reports/%s.pdf", GoFmt.duration(GoFmt.roundToSecond(Duration.between(start, Instant.now()))),
+        Log.printf("■ done in %s. Report: %s/reports/%s.pdf", Format.duration(Format.roundToSecond(Duration.between(start, Instant.now()))),
             api, callId);
         return;
       }
     }
   }
 
-  /** Commits an LP after the given offset from start (goroutine + time.Sleep in Go). */
+  /** Commits an LP once the given offset from start has elapsed, on its own virtual thread. */
   static void at(Instant start, Duration offset, LpRow lp, String note, String callId) {
     Thread.ofVirtual().start(() -> {
       try {

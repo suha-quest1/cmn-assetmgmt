@@ -25,11 +25,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Postgres access (replaces internal/db and the pgx/pgxpool usage).
+ * Postgres access over a Hikari pool.
  *
- * <p>SQL statements are kept verbatim from the Go code, including pgx-style {@code $n}
- * placeholders; {@link #prepare} rewrites them to JDBC {@code ?} placeholders and binds
- * the arguments in occurrence order, so a placeholder used twice is bound twice.
+ * <p>SQL is written with numbered {@code $n} placeholders; {@link #prepare} rewrites them to
+ * JDBC {@code ?} placeholders and binds the arguments in occurrence order, so a placeholder
+ * used twice is bound twice and each statement names its parameters explicitly.
  */
 public final class Db implements AutoCloseable {
   private final HikariDataSource ds;
@@ -43,11 +43,11 @@ public final class Db implements AutoCloseable {
     HikariConfig cfg = toHikari(url);
     cfg.setInitializationFailTimeout(-1); // do not fail on construction; we ping ourselves below
     cfg.setPoolName("assetmgmt");
-    // pgxpool default: max(4, NumCPU) connections.
+    // Pool size: one per core, with a floor of 4.
     cfg.setMaximumPoolSize(Math.max(4, Runtime.getRuntime().availableProcessors()));
     Exception err = null;
     for (int i = 0; i < 40; i++) {
-      // pool.Ping: a direct connection attempt that fails fast while Postgres is not up yet.
+      // A direct connection attempt, which fails fast while Postgres is still starting.
       try (Connection c = java.sql.DriverManager.getConnection(cfg.getJdbcUrl(), cfg.getUsername(), cfg.getPassword())) {
         if (c.isValid(5)) {
           return new Db(new HikariDataSource(cfg));
@@ -62,7 +62,7 @@ public final class Db implements AutoCloseable {
   }
 
   /**
-   * Converts a libpq/pgx connection URL (postgres://user:pass@host:port/db?sslmode=disable)
+   * Converts a postgres://user:pass@host:port/db?sslmode=disable connection URL
    * into a Hikari/JDBC configuration. jdbc:postgresql:// URLs are accepted as-is.
    */
   static HikariConfig toHikari(String url) {
@@ -123,7 +123,7 @@ public final class Db implements AutoCloseable {
 
   private static final Pattern PLACEHOLDER = Pattern.compile("\\$(\\d+)");
 
-  /** Rewrites $n placeholders to ? and binds args (pgx semantics). */
+  /** Rewrites $n placeholders to ? and binds each argument at every position it appears. */
   public static PreparedStatement prepare(Connection c, String sql, Object... args) throws SQLException {
     Matcher m = PLACEHOLDER.matcher(sql);
     StringBuilder out = new StringBuilder();
@@ -145,7 +145,8 @@ public final class Db implements AutoCloseable {
       ps.setNull(idx, Types.NULL);
     } else if (v instanceof Double d) {
       if (Double.isFinite(d)) {
-        // pgx sends float64 to NUMERIC columns using the shortest exact decimal (strconv 'f', -1).
+        // Send NUMERIC as the shortest exact decimal, so a monetary value is not widened
+        // to a binary-float approximation in the column.
         ps.setBigDecimal(idx, new BigDecimal(Double.toString(d)));
       } else {
         ps.setDouble(idx, d);
@@ -198,10 +199,10 @@ public final class Db implements AutoCloseable {
   }
 
   /**
-   * rowsToMaps from cmd/apiserver: every row becomes a map keyed by column name, with the
-   * values pgx's rows.Values() would produce (int4→int32, int8→int64, float8→float64,
-   * bool, varchar/text→string, timestamp→time, NULL→nil). Keys are sorted, like a Go map
-   * marshalled by encoding/json.
+   * Generic query for the dashboard endpoints: every row becomes a map keyed by column name
+   * (int4→Integer, int8→Long, float8→Double, bool→Boolean, varchar/text→String,
+   * timestamp→LocalDateTime, NULL→null). Keys are sorted so the JSON field order is stable
+   * from one response to the next.
    */
   public List<Map<String, Object>> rowsToMaps(String sql, Object... args) throws SQLException {
     try (Connection c = getConnection(); PreparedStatement ps = prepare(c, sql, args); ResultSet rs = ps.executeQuery()) {

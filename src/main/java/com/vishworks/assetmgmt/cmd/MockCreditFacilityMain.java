@@ -3,9 +3,9 @@ package com.vishworks.assetmgmt.cmd;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vishworks.assetmgmt.http.Http;
 import com.vishworks.assetmgmt.http.Router;
-import com.vishworks.assetmgmt.json.GoJson;
+import com.vishworks.assetmgmt.json.JsonCodec;
 import com.vishworks.assetmgmt.util.Env;
-import com.vishworks.assetmgmt.util.GoFmt;
+import com.vishworks.assetmgmt.util.Format;
 import com.vishworks.assetmgmt.util.Log;
 import java.io.IOException;
 import java.util.Map;
@@ -41,14 +41,14 @@ public final class MockCreditFacilityMain {
       }
       DrawdownReq req;
       try {
-        req = GoJson.decodeBody(r.body(), DrawdownReq.class);
-      } catch (GoJson.DecodeException e) {
+        req = JsonCodec.decodeBody(r.body(), DrawdownReq.class);
+      } catch (JsonCodec.DecodeException e) {
         Http.error(r.ex, "invalid JSON", 400);
         return;
       }
       // Simulate a 1.5% facility fee
-      double fee = GoFmt.round(req.amount * 0.015 * 100) / 100;
-      String confirmationId = GoFmt.sprintf("BRIDGE-%s-%d", req.callId, System.currentTimeMillis());
+      double fee = Format.round(req.amount * 0.015 * 100) / 100;
+      String confirmationId = Format.sprintf("BRIDGE-%s-%d", req.callId, System.currentTimeMillis());
       Log.printf("[MOCK-CREDIT] Drawdown: callId=%s amount=$%.2f fee=$%.2f confirmation=%s", req.callId, req.amount, fee, confirmationId);
       Map<String, Object> out = new TreeMap<>();
       out.put("confirmationId", confirmationId);

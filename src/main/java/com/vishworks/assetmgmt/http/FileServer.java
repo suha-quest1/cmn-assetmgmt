@@ -155,7 +155,7 @@ public final class FileServer implements Router.Handler {
         href = n;
       }
       if (href.contains(":") && !href.contains("/")) {
-        href = "./" + href; // keep "a:b" from being read as a scheme (as net/http does)
+        href = "./" + href; // a name like "a:b" would otherwise be read as a URL scheme
       }
       b.append("<a href=\"").append(href).append("\">").append(Http.htmlEscape(n)).append("</a>\n");
     }

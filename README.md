@@ -15,4 +15,3 @@ make test    # run the unit tests (JDK 21 + Maven)
 
 See **[demo_camunda_assetmgmt.md](demo_camunda_assetmgmt.md)** for the architecture mapping, start/stop instructions and the full demo walkthrough.
 
-The backend was migrated from Go to Java (Camunda 8 Java client); see **[GO_TO_JAVA_MIGRATION_REPORT.md](GO_TO_JAVA_MIGRATION_REPORT.md)**.

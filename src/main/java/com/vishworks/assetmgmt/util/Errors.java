@@ -3,7 +3,10 @@ package com.vishworks.assetmgmt.util;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
-/** Helpers to turn Java exceptions into the error strings Go's err.Error() produced. */
+/**
+ * Turns exceptions into the single-line, lower-case messages used in logs, API error bodies
+ * and the {@code errorMessage} of a failed job — "connection refused" rather than a stack trace.
+ */
 public final class Errors {
   private Errors() {}
 

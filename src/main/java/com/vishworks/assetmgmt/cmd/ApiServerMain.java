@@ -9,12 +9,12 @@ import com.vishworks.assetmgmt.db.Db;
 import com.vishworks.assetmgmt.http.FileServer;
 import com.vishworks.assetmgmt.http.Http;
 import com.vishworks.assetmgmt.http.Router;
-import com.vishworks.assetmgmt.json.GoJson;
+import com.vishworks.assetmgmt.json.JsonCodec;
 import com.vishworks.assetmgmt.models.CapitalCallInput;
 import com.vishworks.assetmgmt.models.LP;
 import com.vishworks.assetmgmt.models.Models;
 import com.vishworks.assetmgmt.util.Errors;
-import com.vishworks.assetmgmt.util.GoFmt;
+import com.vishworks.assetmgmt.util.Format;
 import com.vishworks.assetmgmt.util.Log;
 import io.camunda.client.CamundaClient;
 import io.camunda.client.api.response.CorrelateMessageResponse;
@@ -60,7 +60,7 @@ public final class ApiServerMain {
     }
     byte[] html;
     try (InputStream in = ApiServerMain.class.getResourceAsStream("/static/dashboard.html")) {
-      html = in.readAllBytes(); // embedded like //go:embed dashboard.html
+      html = in.readAllBytes(); // bundled into the jar as a resource, so there is no file to mount
     }
     ApiServerMain s = new ApiServerMain(pool,
         Camunda.newClient(get("CAMUNDA_REST_ADDRESS", "http://localhost:8080")),
@@ -151,7 +151,10 @@ public final class ApiServerMain {
     }
   }
 
-  /** rowsToMaps with Go's error behaviour for the secondary queries: an error yields nil (null). */
+  /**
+   * A secondary query for the dashboard: a failure yields null rather than propagating, so one
+   * broken panel cannot fail the whole response.
+   */
   private List<Map<String, Object>> rowsOrNull(String sql, Object... args) {
     try {
       return db.rowsToMaps(sql, args);
@@ -203,13 +206,13 @@ public final class ApiServerMain {
   void startCall(Router.Request r) throws IOException {
     StartReq req;
     try {
-      req = GoJson.decodeBody(r.body(), StartReq.class);
-    } catch (GoJson.DecodeException e) {
+      req = JsonCodec.decodeBody(r.body(), StartReq.class);
+    } catch (JsonCodec.DecodeException e) {
       Http.writeJSON(r.ex, 400, obj("error", "invalid JSON: " + e.getMessage()));
       return;
     }
     if (req.callId.isEmpty()) {
-      req.callId = GoFmt.sprintf("CC-%d-%04d", Year.now().getValue(), ThreadLocalRandom.current().nextInt(9000) + 1000);
+      req.callId = Format.sprintf("CC-%d-%04d", Year.now().getValue(), ThreadLocalRandom.current().nextInt(9000) + 1000);
     }
     if (req.fundId.isEmpty()) {
       req.fundId = "FUND-GROWTH-IV";
@@ -255,7 +258,7 @@ public final class ApiServerMain {
       res = cam.newCreateInstanceCommand()
           .bpmnProcessId(Models.PROCESS_CAPITAL_CALL)
           .latestVersion()
-          .variables(GoJson.marshal(in))
+          .variables(JsonCodec.toJson(in))
           .send()
           .join();
     } catch (RuntimeException e) {
@@ -266,7 +269,7 @@ public final class ApiServerMain {
     Http.writeJSON(r.ex, 201, obj(
         "callId", in.callId,
         "processInstanceKey", pik,
-        "operateUrl", GoFmt.sprintf("%s/operate/processes/%s", camPublic, pik),
+        "operateUrl", Format.sprintf("%s/operate/processes/%s", camPublic, pik),
         "lpCount", in.lpList.size()));
   }
 
@@ -288,8 +291,8 @@ public final class ApiServerMain {
     String callId = r.pathValue("callId");
     LpResponseBody body;
     try {
-      body = GoJson.decodeBody(r.body(), LpResponseBody.class);
-    } catch (GoJson.DecodeException e) {
+      body = JsonCodec.decodeBody(r.body(), LpResponseBody.class);
+    } catch (JsonCodec.DecodeException e) {
       body = null;
     }
     if (body == null || body.lpId.isEmpty()) {
@@ -315,7 +318,7 @@ public final class ApiServerMain {
           .correlationKey(key)
           .messageId("lpCommitment-" + key)
           .timeToLive(Duration.ofHours(1))
-          .variables(GoJson.marshal(vars))
+          .variables(JsonCodec.toJson(vars))
           .send()
           .join();
     } catch (RuntimeException e) {
@@ -338,8 +341,8 @@ public final class ApiServerMain {
     String callId = r.pathValue("callId");
     GpDecisionBody body;
     try {
-      body = GoJson.decodeBody(r.body(), GpDecisionBody.class);
-    } catch (GoJson.DecodeException e) {
+      body = JsonCodec.decodeBody(r.body(), GpDecisionBody.class);
+    } catch (JsonCodec.DecodeException e) {
       body = null;
     }
     if (body == null || body.lpId.isEmpty() || (!body.action.equals("waive") && !body.action.equals("enforce"))) {
@@ -383,14 +386,15 @@ public final class ApiServerMain {
     return cam.newCorrelateMessageCommand()
         .messageName(name)
         .correlationKey(key)
-        .variables(GoJson.marshal(vars))
+        .variables(JsonCodec.toJson(vars))
         .send()
         .join();
   }
 
   /**
-   * The Go server returned Camunda's raw correlation response (decoded into a map, so keys
-   * sorted and v2 keys as strings): {"messageKey","processInstanceKey","tenantId"}.
+   * Camunda's correlation response, passed through as {"messageKey","processInstanceKey",
+   * "tenantId"} with sorted keys and the 64-bit keys as strings — JSON numbers would lose
+   * precision in the browser.
    */
   static Map<String, Object> result(CorrelateMessageResponse res) {
     Map<String, Object> m = new TreeMap<>();

@@ -1,7 +1,7 @@
 package com.vishworks.assetmgmt.handlers;
 
-import static com.vishworks.assetmgmt.util.GoFmt.round2;
-import static com.vishworks.assetmgmt.util.GoFmt.sprintf;
+import static com.vishworks.assetmgmt.util.Format.round2;
+import static com.vishworks.assetmgmt.util.Format.sprintf;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -9,7 +9,7 @@ import com.vishworks.assetmgmt.camunda.JobWorkers;
 import com.vishworks.assetmgmt.camunda.JobWorkers.Job;
 import com.vishworks.assetmgmt.camunda.JobWorkers.JobException;
 import com.vishworks.assetmgmt.db.Db;
-import com.vishworks.assetmgmt.json.GoJson;
+import com.vishworks.assetmgmt.json.JsonCodec;
 import com.vishworks.assetmgmt.models.BridgeResult;
 import com.vishworks.assetmgmt.models.CallState;
 import com.vishworks.assetmgmt.models.CapitalCallInput;
@@ -18,7 +18,7 @@ import com.vishworks.assetmgmt.models.LPResponse;
 import com.vishworks.assetmgmt.models.Models;
 import com.vishworks.assetmgmt.models.PortfolioRisk;
 import com.vishworks.assetmgmt.util.Errors;
-import com.vishworks.assetmgmt.util.GoFmt;
+import com.vishworks.assetmgmt.util.Format;
 import com.vishworks.assetmgmt.util.Log;
 import java.io.IOException;
 import java.net.URI;
@@ -40,7 +40,7 @@ import java.util.TreeMap;
 
 /**
  * The Camunda job workers (BPMN service tasks) of the Intelligent Capital Call &amp;
- * Liquidity Orchestration use case (port of internal/handlers/handlers.go).
+ * Liquidity Orchestration use case.
  *
  * <p>Each job type maps 1:1 to a service task in bpmn/*.bpmn: issueCapitalCall, notifyLPs,
  * autoFollowUp, recordLPResponse, finalizeResponses, aggregateLiquidity,
@@ -98,7 +98,7 @@ public class Handlers {
   }
 
   <T> T postJSON(String url, Object in, TypeReference<T> out) throws IOException, InterruptedException {
-    byte[] b = GoJson.marshal(in).getBytes(StandardCharsets.UTF_8);
+    byte[] b = JsonCodec.toJson(in).getBytes(StandardCharsets.UTF_8);
     HttpRequest req = HttpRequest.newBuilder(URI.create(url))
         .timeout(httpTimeout)
         .header("Content-Type", "application/json")
@@ -108,19 +108,24 @@ public class Handlers {
     try {
       resp = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     } catch (IOException e) {
-      // Same shape as Go's *url.Error: Post "<url>": <reason>
+      // Wrap transport failures as: Post "<url>": <reason> — the URL is what makes these
+      // diagnosable in an incident, since the cause alone rarely names the endpoint.
       throw new IOException("Post \"" + url + "\": " + netReason(url, e), e);
     }
     if (resp.statusCode() >= 300) {
       throw new JobErrorIO(sprintf("POST %s: HTTP %d: %s", url, resp.statusCode(), resp.body()));
     }
     if (out != null) {
-      return GoJson.MAPPER.readValue(resp.body(), out);
+      return JsonCodec.MAPPER.readValue(resp.body(), out);
     }
     return null;
   }
 
-  /** The reason text Go's net/http client gives for common transport failures. */
+  /**
+   * A short, stable reason for the common transport failures ("connection refused",
+   * "no such host", "i/o timeout"), naming host and port. {@code MockServicesTest} and the
+   * incident text both depend on these strings.
+   */
   static String netReason(String url, IOException e) {
     URI u = URI.create(url);
     String host = u.getHost() == null ? "" : u.getHost();
@@ -177,7 +182,7 @@ public class Handlers {
     }
   }
 
-  /** map[string]any literal; keys sorted like encoding/json writes a Go map. */
+  /** Builds a variable map from alternating key/value arguments, keys sorted for stable JSON. */
   static Map<String, Object> m(Object... kv) {
     Map<String, Object> out = new TreeMap<>();
     for (int i = 0; i < kv.length; i += 2) {
@@ -216,7 +221,8 @@ public class Handlers {
       draws.put(lp.lpId, d);
     }
 
-    // time.Now().Add(...) written to a "timestamp" column: pgx keeps the local wall clock.
+    // These go into "timestamp" columns, which carry no zone, so write the local wall clock
+    // and read it back as UTC (see Format#rfc3339Nano).
     LocalDateTime now = LocalDateTime.now();
     LocalDateTime deadline = now.plusSeconds((long) in.deadlineDays * spd);
     try (Connection c = db.getConnection()) {
@@ -266,7 +272,7 @@ public class Handlers {
     out.put("waitStage3", isoSeconds(3 * spd));
     out.put("waitFinal", isoSeconds(fin));
     out.put("callDeadline", isoSeconds((in.deadlineDays + 3L) * spd));
-    out.put("deadlineAt", GoFmt.rfc3339Utc(deadline.atZone(ZoneId.systemDefault()).toInstant()));
+    out.put("deadlineAt", Format.rfc3339Utc(deadline.atZone(ZoneId.systemDefault()).toInstant()));
     out.put("bridgeTriggered", false);
     out.put("bridgeResult", null);
     out.put("highRiskLPs", List.of());
@@ -324,7 +330,7 @@ public class Handlers {
     return m("followUps", stage);
   }
 
-  /** strconv.Atoi with the error ignored (0 on failure). */
+  /** Parses an int, yielding 0 for anything unparseable — these inputs are already validated. */
   static int atoi(String s) {
     try {
       return Integer.parseInt(s.startsWith("+") ? s.substring(1) : s);
@@ -401,7 +407,7 @@ public class Handlers {
         in.callId);
     db.exec("UPDATE capital_call_lps SET status='defaulted', committed_usd=0 WHERE call_id=$1 AND status NOT IN ('committed','deferred')", in.callId);
     event(in.callId, "", "finalizeResponses", "Response window closed early (" + reason + "); outstanding LPs marked defaulted");
-    // A Go nil slice (no rows) is encoded as null.
+    // No rows must serialise as null, not [] — the BPMN gateway tests the variable for null.
     return m("lpResponses", out.isEmpty() ? null : out, "settlementMode", reason);
   }
 
@@ -484,7 +490,8 @@ public class Handlers {
       sumRisk += r.riskScore;
       el += r.amountUSD * r.riskScore;
     }
-    // sort.Slice by descending risk (insertion sort for <= 12 elements in Go, i.e. stable).
+    // Stable sort by descending risk, so equal scores keep their input order and the
+    // "top risky LPs" list is reproducible.
     List<LPResponse> sorted = new ArrayList<>(rs);
     sorted.sort((a, b) -> Double.compare(b.riskScore, a.riskScore));
     List<String> top = new ArrayList<>();
@@ -494,9 +501,9 @@ public class Handlers {
       }
     }
     PortfolioRisk pr = new PortfolioRisk();
-    pr.concentrationScore = GoFmt.round(hhi * 10000) / 10000;
+    pr.concentrationScore = Format.round(hhi * 10000) / 10000;
     pr.topRiskyLPs = top;
-    pr.averageRiskScore = GoFmt.round(sumRisk / Math.max(1, rs.size()) * 10000) / 10000;
+    pr.averageRiskScore = Format.round(sumRisk / Math.max(1, rs.size()) * 10000) / 10000;
     pr.expectedLossUSD = round2(el);
     db.exec("UPDATE capital_calls SET concentration_hhi=$2 WHERE call_id=$1", in.callId, pr.concentrationScore);
     event(in.callId, "", "scoreLPPortfolio", sprintf("HHI %.4f, top risky %v", pr.concentrationScore, top));

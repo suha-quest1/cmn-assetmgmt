@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Same output as Go's standard "log" package used by the original services:
-  "2006/01/02 15:04:05 message" on stderr.
+  Log layout: "2026/01/02 15:04:05 message" on stderr — date and time only, no level or
+  logger name, so the demo output stays readable when several services share a terminal.
   The Camunda client, HikariCP and the HTTP/gRPC libraries only report warnings and errors.
 -->
 <Configuration status="WARN">
@@ -9,7 +9,7 @@
     <Console name="Stderr" target="SYSTEM_ERR">
       <PatternLayout pattern="%d{yyyy/MM/dd HH:mm:ss} %m%n%throwable" charset="UTF-8"/>
     </Console>
-    <!-- Library warnings on one line ("message: cause"), like the Go worker's "[worker] activate …: err". -->
+    <!-- Library warnings on one line ("message: cause") instead of a full stack trace. -->
     <Console name="StderrOneLine" target="SYSTEM_ERR">
       <PatternLayout pattern="%d{yyyy/MM/dd HH:mm:ss} %m%notEmpty{: %ex{short.message}}%n" alwaysWriteExceptions="false" charset="UTF-8"/>
     </Console>

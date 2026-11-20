@@ -26,30 +26,36 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
 /**
- * A Jackson {@link ObjectMapper} configured to behave like Go's encoding/json, so that
- * every JSON document the Java backend produces (HTTP responses, process variables,
- * report files) is the same as the one the Go backend produced:
+ * The single {@link ObjectMapper} for every JSON document this backend reads or writes
+ * (HTTP responses, process variables, report files). Jackson's defaults are overridden so
+ * the wire format stays stable and human-readable:
  *
  * <ul>
- *   <li>float64 numbers are written like strconv ('5000000', '0.82', never '5.0E7');
- *   <li>'&lt;', '&gt;', '&amp;', U+2028 and U+2029 are escaped as in json.Marshal (HTML-safe);
+ *   <li>doubles are written in plain notation ('5000000', '0.82', never '5.0E7') — these are
+ *       monetary amounts in documents people read, so exponent notation is not acceptable;
+ *   <li>'&lt;', '&gt;', '&amp;', U+2028 and U+2029 are escaped, so a payload can be embedded
+ *       in an HTML page or a JS string without further quoting;
  *   <li>Postgres timestamps are written as RFC 3339 with nanoseconds, in UTC ('Z');
- *   <li>decoding ignores unknown fields, matches field names case-insensitively, keeps the
- *       zero value when a field is null, and rejects type mismatches (e.g. a number for a string).
+ *   <li>decoding is lenient in the ways the dashboard and webhooks rely on — unknown fields are
+ *       ignored and field names match case-insensitively — but rejects type mismatches (e.g. a
+ *       number where a string is expected), and a null field leaves the field's default value.
  * </ul>
+ *
+ * <p>The exact bytes are pinned by the fixtures in {@code src/test/resources/golden}; changing
+ * anything here will change those documents.
  */
-public final class GoJson {
-  private GoJson() {}
+public final class JsonCodec {
+  private JsonCodec() {}
 
   public static final ObjectMapper MAPPER = build();
 
   private static ObjectMapper build() {
-    SimpleModule m = new SimpleModule("go-json");
+    SimpleModule m = new SimpleModule("json-codec");
     JsonSerializer<Double> dbl = new JsonSerializer<>() {
       @Override
       public void serialize(Double v, JsonGenerator g, SerializerProvider p) throws IOException {
         try {
-          g.writeNumber(com.vishworks.assetmgmt.util.GoFmt.jsonFloat(v));
+          g.writeNumber(com.vishworks.assetmgmt.util.Format.jsonFloat(v));
         } catch (IllegalArgumentException e) {
           throw new com.fasterxml.jackson.core.JsonGenerationException(e.getMessage(), g);
         }
@@ -60,13 +66,13 @@ public final class GoJson {
     m.addSerializer(LocalDateTime.class, new JsonSerializer<>() {
       @Override
       public void serialize(LocalDateTime v, JsonGenerator g, SerializerProvider p) throws IOException {
-        g.writeString(com.vishworks.assetmgmt.util.GoFmt.rfc3339Nano(v));
+        g.writeString(com.vishworks.assetmgmt.util.Format.rfc3339Nano(v));
       }
     });
     m.addSerializer(OffsetDateTime.class, new JsonSerializer<>() {
       @Override
       public void serialize(OffsetDateTime v, JsonGenerator g, SerializerProvider p) throws IOException {
-        g.writeString(com.vishworks.assetmgmt.util.GoFmt.rfc3339Nano(v.toZonedDateTime()));
+        g.writeString(com.vishworks.assetmgmt.util.Format.rfc3339Nano(v.toZonedDateTime()));
       }
     });
 
@@ -81,9 +87,9 @@ public final class GoJson {
         .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
         .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
         .build();
-    // Go leaves a field at its zero value when the JSON value is null.
+    // An explicit null leaves the field at its default rather than overwriting it with null.
     mapper.setDefaultSetterInfo(JsonSetter.Value.forValueNulls(Nulls.SKIP));
-    // Go refuses to decode a number into a string, a string into a number, etc.
+    // Refuse silent coercion: a number for a string, a string for a number, etc. is an error.
     for (LogicalType t : new LogicalType[] {LogicalType.Textual, LogicalType.Integer, LogicalType.Float, LogicalType.Boolean}) {
       mapper.coercionConfigFor(t)
           .setCoercion(CoercionInputShape.Integer, t == LogicalType.Integer || t == LogicalType.Float ? CoercionAction.TryConvert : CoercionAction.Fail)
@@ -92,12 +98,12 @@ public final class GoJson {
           .setCoercion(CoercionInputShape.Boolean, t == LogicalType.Boolean ? CoercionAction.TryConvert : CoercionAction.Fail)
           .setCoercion(CoercionInputShape.EmptyString, t == LogicalType.Textual ? CoercionAction.TryConvert : CoercionAction.Fail);
     }
-    mapper.getFactory().setCharacterEscapes(new GoEscapes());
+    mapper.getFactory().setCharacterEscapes(new HtmlSafeEscapes());
     return mapper;
   }
 
-  /** json.Marshal. */
-  public static String marshal(Object v) {
+  /** Compact JSON, no trailing newline. */
+  public static String toJson(Object v) {
     try {
       return MAPPER.writeValueAsString(v);
     } catch (IOException e) {
@@ -105,22 +111,22 @@ public final class GoJson {
     }
   }
 
-  /** json.NewEncoder(w).Encode(v): compact JSON followed by a newline. */
+  /** Compact JSON followed by a newline, for writing straight to a response body. */
   public static byte[] encode(Object v) {
-    return (marshal(v) + "\n").getBytes(StandardCharsets.UTF_8);
+    return (toJson(v) + "\n").getBytes(StandardCharsets.UTF_8);
   }
 
-  /** json.MarshalIndent(v, "", "  "). */
-  public static String marshalIndent(Object v) {
+  /** Pretty-printed JSON, two-space indent. */
+  public static String toJsonIndented(Object v) {
     try {
-      return MAPPER.writer(new GoPrettyPrinter()).writeValueAsString(v);
+      return MAPPER.writer(new TwoSpaceIndentPrinter()).writeValueAsString(v);
     } catch (IOException e) {
       throw new IllegalStateException("json: " + e.getMessage(), e);
     }
   }
 
-  /** json.Unmarshal into a new value; a JSON null yields the zero value. */
-  public static <T> T unmarshal(String json, Class<T> type) throws IOException {
+  /** Decodes into a new value; a bare JSON null yields a default-constructed instance. */
+  public static <T> T fromJson(String json, Class<T> type) throws IOException {
     T v = MAPPER.readValue(json, type);
     if (v == null) {
       try {
@@ -133,8 +139,9 @@ public final class GoJson {
   }
 
   /**
-   * json.NewDecoder(r).Decode(&v) for request bodies: an empty body is reported as "EOF"
-   * (the Go error text), everything else as Jackson's parse error.
+   * Decodes a request body. An empty body is reported as "EOF"; anything else carries
+   * Jackson's parse message, trimmed to its first line. Both reach the client verbatim,
+   * so {@code MockServicesTest} asserts on these strings.
    */
   public static <T> T decodeBody(byte[] body, Class<T> type) throws DecodeException {
     String s = new String(body, StandardCharsets.UTF_8);
@@ -142,7 +149,7 @@ public final class GoJson {
       throw new DecodeException("EOF");
     }
     try {
-      return unmarshal(s, type);
+      return fromJson(s, type);
     } catch (IOException e) {
       String msg = e.getMessage();
       int nl = msg == null ? -1 : msg.indexOf('\n');
@@ -157,11 +164,11 @@ public final class GoJson {
     }
   }
 
-  /** encoding/json string escaping (HTML-safe, lower-case hex, \b and \f short forms). */
-  static final class GoEscapes extends CharacterEscapes {
+  /** HTML-safe string escaping: lower-case hex, with \b and \f written in short form. */
+  static final class HtmlSafeEscapes extends CharacterEscapes {
     private final int[] codes;
 
-    GoEscapes() {
+    HtmlSafeEscapes() {
       codes = CharacterEscapes.standardAsciiEscapesForJSON();
       for (int c = 0; c < 0x20; c++) {
         codes[c] = CharacterEscapes.ESCAPE_CUSTOM;
@@ -192,9 +199,9 @@ public final class GoJson {
     }
   }
 
-  /** Pretty printer reproducing json.MarshalIndent(v, "", "  "). */
-  static final class GoPrettyPrinter extends DefaultPrettyPrinter {
-    GoPrettyPrinter() {
+  /** Two-space indent, no space before the ':' in a field, no root separator. */
+  static final class TwoSpaceIndentPrinter extends DefaultPrettyPrinter {
+    TwoSpaceIndentPrinter() {
       super(Separators.createDefaultInstance()
           .withObjectFieldValueSpacing(Separators.Spacing.AFTER)
           .withRootSeparator(""));
@@ -203,13 +210,13 @@ public final class GoJson {
       indentArraysWith(ind);
     }
 
-    GoPrettyPrinter(GoPrettyPrinter base) {
+    TwoSpaceIndentPrinter(TwoSpaceIndentPrinter base) {
       super(base);
     }
 
     @Override
     public DefaultPrettyPrinter createInstance() {
-      return new GoPrettyPrinter(this);
+      return new TwoSpaceIndentPrinter(this);
     }
 
     @Override

@@ -14,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Request router with the semantics of Go 1.22's http.ServeMux patterns used by the
- * original services:
+ * Request router over {@code com.sun.net.httpserver}, which matches on path prefixes only.
+ * This adds method matching and single-segment wildcards:
  *
  * <ul>
  *   <li>{@code "GET /api/x/{id}"} — method + path with single-segment wildcards (a GET
@@ -98,7 +98,7 @@ public final class Router implements HttpHandler {
     try {
       dispatch(ex);
     } catch (Exception e) {
-      // net/http recovers handler panics and drops the connection.
+      // A handler throwing must not take down the listener: log it and drop the connection.
       LOG.error("http: panic serving {}: {}", ex.getRemoteAddress(), e.toString(), e);
       ex.close();
     }
@@ -202,7 +202,7 @@ public final class Router implements HttpHandler {
     return score;
   }
 
-  /** path.Clean that keeps a trailing slash (net/http cleanPath). */
+  /** Normalises '.', '..' and duplicate slashes in a path, preserving any trailing slash. */
   static String cleanPath(String p) {
     if (p.isEmpty()) return "/";
     if (p.charAt(0) != '/') p = "/" + p;

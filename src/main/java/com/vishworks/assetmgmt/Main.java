@@ -8,9 +8,9 @@ import com.vishworks.assetmgmt.cmd.WorkerMain;
 import java.util.Arrays;
 
 /**
- * Single entry point of the executable jar. The first argument selects the service, mirroring
- * the former Go binaries cmd/worker, cmd/apiserver, cmd/mockses, cmd/mockcreditfacility and
- * cmd/demodriver; remaining arguments are passed through.
+ * Single entry point of the executable jar. The first argument selects which service to run;
+ * the remaining arguments are passed through to it. One jar with five entry points keeps the
+ * Docker build to a single image, parameterised by the SERVICE build arg.
  *
  * <pre>java -jar camunda-assetmgmt.jar worker|apiserver|mockses|mockcreditfacility|demodriver [args]</pre>
  */

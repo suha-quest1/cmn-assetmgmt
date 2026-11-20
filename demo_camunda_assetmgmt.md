@@ -6,7 +6,7 @@ This guide covers starting and stopping the local stack and gives a step-by-step
 |---|---|
 | **Use case** | `use_case.pdf`: Asset Management, Intelligent Capital Call & Liquidity Orchestration |
 | **Orchestrator** | Camunda 8.10.9, the latest stable release, self-managed and open source. It runs as the lightweight "orchestration cluster" container: Zeebe engine, Operate, Tasklist and REST API, with H2 secondary storage. |
-| **Implementation** | Java 21 (Maven). The job workers and API server use the official Camunda 8 Java client (`io.camunda:camunda-client-java` 8.10.9) over the Orchestration Cluster REST API (`/v2`). Migrated from the original Go implementation, see [GO_TO_JAVA_MIGRATION_REPORT.md](GO_TO_JAVA_MIGRATION_REPORT.md). |
+| **Implementation** | Java 21 (Maven). The job workers and API server use the official Camunda 8 Java client (`io.camunda:camunda-client-java` 8.10.9) over the Orchestration Cluster REST API (`/v2`). |
 | **Ported from** | `../temporal-asset-management`, the Temporal version of the same use case |
 
 ---

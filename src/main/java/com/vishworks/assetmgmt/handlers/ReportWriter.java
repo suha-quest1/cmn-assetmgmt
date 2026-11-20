@@ -1,16 +1,16 @@
 package com.vishworks.assetmgmt.handlers;
 
-import static com.vishworks.assetmgmt.util.GoFmt.sprintf;
+import static com.vishworks.assetmgmt.util.Format.sprintf;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.vishworks.assetmgmt.json.GoJson;
+import com.vishworks.assetmgmt.json.JsonCodec;
 import com.vishworks.assetmgmt.models.CallState;
 import com.vishworks.assetmgmt.models.GPDecision;
 import com.vishworks.assetmgmt.models.LPResponse;
 import com.vishworks.assetmgmt.report.Pdf;
-import com.vishworks.assetmgmt.util.GoFmt;
+import com.vishworks.assetmgmt.util.Format;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,13 +20,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** Regulatory liquidity report as JSON and PDF (port of internal/handlers/report.go). */
+/** Regulatory liquidity report, rendered as both JSON and PDF. */
 final class ReportWriter {
   private ReportWriter() {}
 
   /** usd formats a float as $1,234,567.89 (thousands separators). */
   static String usd(double f) {
-    String s = GoFmt.fixed(f, 2);
+    String s = Format.fixed(f, 2);
     String intPart = s.substring(0, s.length() - 3), dec = s.substring(s.length() - 3);
     String neg = "";
     if (!intPart.isEmpty() && intPart.charAt(0) == '-') {
@@ -69,7 +69,7 @@ final class ReportWriter {
         },
         in.callId);
     if (ledger.isEmpty()) {
-      ledger = null; // nil slice in Go → "ledger": null
+      ledger = null; // an empty ledger is reported as "ledger": null, not []
     }
 
     ZonedDateTime now = Handlers.nowUtc();
@@ -83,7 +83,10 @@ final class ReportWriter {
     return new String[] {"/reports/" + in.callId + ".json", "/reports/" + in.callId + ".pdf"};
   }
 
-  /** The JSON report document (json.MarshalIndent of the Go map). */
+  /**
+   * The JSON report document, pretty-printed with sorted keys. Byte-compared against
+   * {@code src/test/resources/golden} by {@code ReportWriterGoldenTest}.
+   */
   static String renderJson(CallState in, String pik, List<LedgerRow> ledger, ZonedDateTime now) {
     Map<String, Object> summary = new TreeMap<>();
     summary.put("targetAmountUSD", in.targetAmountUSD);
@@ -93,7 +96,7 @@ final class ReportWriter {
     summary.put("bridgeTriggered", in.bridgeTriggered);
     Map<String, Object> doc = new TreeMap<>();
     doc.put("reportType", "LiquidityReport");
-    doc.put("generatedAt", GoFmt.rfc3339Utc(now.toInstant()));
+    doc.put("generatedAt", Format.rfc3339Utc(now.toInstant()));
     doc.put("orchestrator", "Camunda 8");
     doc.put("processInstanceKey", pik);
     doc.put("callId", in.callId);
@@ -105,7 +108,7 @@ final class ReportWriter {
     doc.put("lpDetails", in.lpResponses);
     doc.put("gpDecisions", in.gpDecisions);
     doc.put("ledger", ledger);
-    return GoJson.marshalIndent(doc);
+    return JsonCodec.toJsonIndented(doc);
   }
 
   /** The PDF report. */
@@ -134,7 +137,7 @@ final class ReportWriter {
       p.heading("3. Portfolio risk");
       p.mono(sprintf("Concentration (HHI): %.4f   Avg risk: %.4f   Expected loss: %s", in.portfolioRisk.concentrationScore,
           in.portfolioRisk.averageRiskScore, usd(in.portfolioRisk.expectedLossUSD)));
-      p.mono(sprintf("Top risky LPs: %s", GoFmt.slice(in.portfolioRisk.topRiskyLPs)));
+      p.mono(sprintf("Top risky LPs: %s", Format.slice(in.portfolioRisk.topRiskyLPs)));
     }
     p.heading("4. GP escalations (human-in-the-loop)");
     List<GPDecision> decisions = Handlers.nz(in.gpDecisions);

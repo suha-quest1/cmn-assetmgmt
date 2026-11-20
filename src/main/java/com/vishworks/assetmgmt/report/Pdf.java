@@ -1,6 +1,6 @@
 package com.vishworks.assetmgmt.report;
 
-import static com.vishworks.assetmgmt.util.GoFmt.sprintf;
+import static com.vishworks.assetmgmt.util.Format.sprintf;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -8,8 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tiny, dependency-free PDF 1.4 generator (Helvetica / Courier text only), a byte-for-byte
- * port of internal/report/pdf.go. Accumulates lines and paginates them on A4.
+ * Tiny, dependency-free PDF 1.4 generator (Helvetica / Courier text only). Accumulates
+ * lines and paginates them on A4. Output is byte-for-byte stable, which is what lets the
+ * golden fixtures compare whole PDFs.
  */
 public final class Pdf {
   private record Line(String text, String font, double size, double gap) {}

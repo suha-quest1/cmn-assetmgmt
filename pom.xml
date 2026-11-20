@@ -5,8 +5,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <!--
-    Intelligent Capital Call & Liquidity Orchestration on Camunda 8 (Java edition).
-    One artifact, several entry points (same layout as the former Go module with cmd/*):
+    Intelligent Capital Call & Liquidity Orchestration on Camunda 8.
+    One artifact, several entry points selected by the first argument:
       java -jar target/camunda-assetmgmt.jar worker|apiserver|mockses|mockcreditfacility|demodriver
   -->
   <groupId>com.vishworks</groupId>
@@ -36,14 +36,14 @@
       <version>${camunda.version}</version>
     </dependency>
 
-    <!-- JSON (replaces Go encoding/json). Same version the Camunda client uses. -->
+    <!-- JSON. Pinned to the version the Camunda client already brings in. -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
       <version>${jackson.version}</version>
     </dependency>
 
-    <!-- PostgreSQL driver + connection pool (replace github.com/jackc/pgx/v5 and pgxpool). -->
+    <!-- PostgreSQL driver + connection pool. -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
@@ -55,7 +55,7 @@
       <version>${hikaricp.version}</version>
     </dependency>
 
-    <!-- Logging: SLF4J (used by the Camunda client) bound to Log4j 2, formatted like Go's log package. -->
+    <!-- Logging: SLF4J (used by the Camunda client) bound to Log4j 2; layout in log4j2.xml. -->
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j2-impl</artifactId>
@@ -89,7 +89,7 @@
         <version>3.5.3</version>
       </plugin>
       <plugin>
-        <!-- Self-contained executable jar (the Java analogue of the static Go binaries). -->
+        <!-- Self-contained executable jar, so the runtime image needs only a JRE. -->
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <version>3.6.0</version>

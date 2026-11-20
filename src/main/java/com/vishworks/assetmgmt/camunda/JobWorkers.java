@@ -1,6 +1,6 @@
 package com.vishworks.assetmgmt.camunda;
 
-import com.vishworks.assetmgmt.json.GoJson;
+import com.vishworks.assetmgmt.json.JsonCodec;
 import com.vishworks.assetmgmt.util.Errors;
 import com.vishworks.assetmgmt.util.Log;
 import io.camunda.client.CamundaClient;
@@ -15,9 +15,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Registers one Camunda job worker per job type (replaces internal/camunda/worker.go).
+ * Registers one Camunda job worker per job type.
  *
- * <p>Behaviour carried over from the Go worker loop:
+ * <p>Polling and failure handling:
  *
  * <ul>
  *   <li>REST long polling with a 20 s request timeout, up to 16 jobs per type, 60 s job lock;
@@ -25,7 +25,8 @@ import java.util.Map;
  *   <li>each activated job is handled concurrently (virtual thread per job);
  *   <li>a handler error fails the job with {@code retries - 1} (never below 0) and a 5 s
  *       retry back-off, so Camunda raises an incident in Operate once retries are exhausted;
- *   <li>an unexpected runtime exception is reported like a recovered Go panic ("panic: …");
+ *   <li>an unexpected runtime exception is caught and reported as "panic: …", so it shows up
+ *       as an incident instead of killing the worker;
  *   <li>a successful handler completes the job with the variables it returned.
  * </ul>
  */
@@ -40,7 +41,7 @@ public final class JobWorkers {
     Map<String, Object> handle(Job job) throws Exception;
   }
 
-  /** An error returned by a handler (the Go {@code error} return value). */
+  /** A handler failure that is expected and already has a usable message. */
   public static class JobException extends Exception {
     public JobException(String message) {
       super(message);
@@ -51,7 +52,7 @@ public final class JobWorkers {
     }
   }
 
-  /** An activated job, with the helpers the Go Job type offered. */
+  /** An activated job, wrapped so handlers get typed variable access without touching Jackson. */
   public static final class Job {
     private final ActivatedJob job;
 
@@ -86,7 +87,7 @@ public final class JobWorkers {
       if (vars == null || vars.isEmpty()) {
         vars = "{}";
       }
-      return GoJson.unmarshal(vars, type);
+      return JsonCodec.fromJson(vars, type);
     }
 
     /** Returns a custom header as string ("" when absent). */
@@ -174,7 +175,7 @@ public final class JobWorkers {
     try {
       var cmd = jobClient.newCompleteCommand(job.key());
       if (vars != null) {
-        cmd = cmd.variables(GoJson.marshal(vars));
+        cmd = cmd.variables(JsonCodec.toJson(vars));
       }
       cmd.send().join();
     } catch (RuntimeException ce) {
@@ -184,7 +185,11 @@ public final class JobWorkers {
     Log.printf("[worker] completed %-22s element=%-28s pi=%s", job.type(), job.elementId(), job.processInstanceKey());
   }
 
-  /** err.Error() for returned errors; "panic: …" for unexpected runtime failures (safeCall). */
+  /**
+   * The {@code errorMessage} reported to Camunda, and therefore the text shown on the incident
+   * in Operate: the plain message for an expected failure, prefixed "panic: " for an unchecked
+   * one, so the two are distinguishable at a glance.
+   */
   static String errorText(Throwable t) {
     t = Errors.unwrap(t);
     if (t instanceof RuntimeException || t instanceof Error) {
