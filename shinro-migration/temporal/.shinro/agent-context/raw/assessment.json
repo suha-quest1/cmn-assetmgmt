@@ -1,0 +1,1594 @@
+{
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-11-20T10:13:56.156108714Z",
+  "source": {
+    "baseUrl": "http://host.docker.internal:8080/v2",
+    "clusterVersion": "8.10.9",
+    "apiAdapter": "orchestration-cluster-v2",
+    "clusterSize": 1,
+    "partitionsCount": 1,
+    "replicationFactor": 1,
+    "multiTenancyEnabled": false,
+    "permissionGaps": []
+  },
+  "summary": {
+    "processDefinitions": 2,
+    "distinctProcessIds": 2,
+    "dormantProcessIds": 0,
+    "activeInstances": 0,
+    "longestRunningInstanceDays": 0,
+    "distinctJobTypes": 14,
+    "nonIdempotentJobTypes": 0,
+    "userTasks": 1,
+    "distinctForms": 1,
+    "dmnDecisions": 0,
+    "connectorUsages": 0,
+    "distinctConnectorTypes": 0,
+    "signalThrowEvents": 0,
+    "compensationElements": 0,
+    "tenants": 1,
+    "estateGrade": "B",
+    "estateScore": 12.461,
+    "gradeDimensions": {
+      "constructCompatibility": 0.9272727272727272,
+      "structuralReducibility": 0.5,
+      "platformSurfaceDependency": 0.9636363636363636,
+      "runtimeTractability": 1
+    },
+    "totalSizeUnits": 136,
+    "processesByComplexity": {
+      "High": 2
+    },
+    "nativeUserTaskCount": 1,
+    "distinctCandidateGroups": [
+      "gp-investment-committee"
+    ],
+    "priorityUsageCount": 1
+  },
+  "processes": [
+    {
+      "processDefinitionId": "capital-call",
+      "name": "Intelligent Capital Call & Liquidity Orchestration",
+      "latestVersion": 1,
+      "resourceName": "capital-call.bpmn",
+      "sizeUnits": 60,
+      "complexity": "High",
+      "grade": "D",
+      "runtime": {
+        "activeInstances": 0,
+        "startsPerDay": 0.2857142857142857,
+        "durationP50Seconds": 57.661,
+        "durationP95Seconds": 119.123,
+        "durationMaxSeconds": 119.123,
+        "openIncidents": 0
+      },
+      "projection": {
+        "projectedEventsP95": 63.392857142857146,
+        "projectedEventsMax": 63.392857142857146,
+        "historyRiskBand": "fine"
+      },
+      "elements": {
+        "callActivity": {
+          "count": 1,
+          "class": "AUTO+FLAG"
+        },
+        "endEvent.none": {
+          "count": 3,
+          "class": "AUTO"
+        },
+        "gateway.exclusive": {
+          "count": 6,
+          "class": "AUTO+FLAG",
+          "findings": [
+            "No default flow is declared. In Camunda, an unmatched condition raises an incident. The generated Go needs an explicit branch for the unmatched case. Do not assume that one path always matches."
+          ]
+        },
+        "gateway.parallel": {
+          "count": 2,
+          "class": "AUTO"
+        },
+        "message.boundaryInterrupting": {
+          "count": 3,
+          "class": "AUTO+FLAG"
+        },
+        "multiInstance.parallel": {
+          "count": 1,
+          "class": "AUTO+FLAG",
+          "findings": [
+            "The static BPMN does not show the size of the collection at runtime. Batched child workflows are recommended when a collection nears about 500 items. If variable payload samples for this collection are available, check the size against them."
+          ]
+        },
+        "serviceTask": {
+          "count": 13,
+          "class": "AUTO"
+        },
+        "startEvent.none": {
+          "count": 2,
+          "class": "AUTO"
+        },
+        "subprocess.embedded": {
+          "count": 1,
+          "class": "AUTO"
+        },
+        "timer.boundaryInterrupting": {
+          "count": 1,
+          "class": "AUTO+FLAG"
+        },
+        "userTask": {
+          "count": 1,
+          "class": "AUTO+FLAG"
+        }
+      },
+      "controlFlowGraph": {
+        "processId": "capital-call",
+        "nodes": [
+          {
+            "id": "Start_Call",
+            "type": "startEvent",
+            "name": "GP issues capital call"
+          },
+          {
+            "id": "Start_GP",
+            "type": "startEvent"
+          },
+          {
+            "id": "End_Cancelled",
+            "type": "endEvent",
+            "name": "Capital call cancelled"
+          },
+          {
+            "id": "End_GP",
+            "type": "endEvent"
+          },
+          {
+            "id": "End_Call",
+            "type": "endEvent",
+            "name": "Capital call settled & reported"
+          },
+          {
+            "id": "Task_Issue",
+            "type": "serviceTask",
+            "name": "Issue capital call",
+            "jobType": "issueCapitalCall"
+          },
+          {
+            "id": "Task_Notify",
+            "type": "serviceTask",
+            "name": "Notify LPs (SES batch)",
+            "jobType": "notifyLPs"
+          },
+          {
+            "id": "Task_Finalize",
+            "type": "serviceTask",
+            "name": "Close response window (default outstanding LPs)",
+            "jobType": "finalizeResponses"
+          },
+          {
+            "id": "Task_FinalizeDeadline",
+            "type": "serviceTask",
+            "name": "Close response window (deadline)",
+            "jobType": "finalizeResponses"
+          },
+          {
+            "id": "Task_Cancel",
+            "type": "serviceTask",
+            "name": "Mark call cancelled",
+            "jobType": "markCallCancelled"
+          },
+          {
+            "id": "Task_Aggregate",
+            "type": "serviceTask",
+            "name": "Aggregate liquidity",
+            "jobType": "aggregateLiquidity"
+          },
+          {
+            "id": "Task_Predict",
+            "type": "serviceTask",
+            "name": "Predict LP default risk (ML)",
+            "jobType": "predictDefaultRisk"
+          },
+          {
+            "id": "Task_Portfolio",
+            "type": "serviceTask",
+            "name": "Score LP portfolio (concentration)",
+            "jobType": "scoreLPPortfolio"
+          },
+          {
+            "id": "Task_Bridge",
+            "type": "serviceTask",
+            "name": "Trigger bridge (credit line drawdown)",
+            "jobType": "triggerBridge"
+          },
+          {
+            "id": "Task_Escalate",
+            "type": "serviceTask",
+            "name": "Escalate to GP (Slack alert)",
+            "jobType": "escalateToGP"
+          },
+          {
+            "id": "Task_ApplyDecision",
+            "type": "serviceTask",
+            "name": "Apply GP decision (enforcement notice if enforce)",
+            "jobType": "applyGPDecision"
+          },
+          {
+            "id": "Task_Settle",
+            "type": "serviceTask",
+            "name": "Settle & reconcile (wires + ledger)",
+            "jobType": "settleAndReconcile"
+          },
+          {
+            "id": "Task_Report",
+            "type": "serviceTask",
+            "name": "Emit liquidity report (PDF + JSON)",
+            "jobType": "emitLiquidityReport"
+          },
+          {
+            "id": "UserTask_GPApproval",
+            "type": "userTask",
+            "name": "GP approval gate: waive or enforce",
+            "userTask": {
+              "isZeebeUserTask": true,
+              "candidateGroups": "gp-investment-committee",
+              "priority": 80,
+              "formId": "gp-approval-form"
+            }
+          },
+          {
+            "id": "Gateway_Responses",
+            "type": "exclusiveGateway"
+          },
+          {
+            "id": "Gateway_Split",
+            "type": "parallelGateway"
+          },
+          {
+            "id": "Gateway_Gap",
+            "type": "exclusiveGateway",
+            "name": "Liquidity gap > 10%?"
+          },
+          {
+            "id": "Gateway_GapMerge",
+            "type": "exclusiveGateway"
+          },
+          {
+            "id": "Gateway_HighRisk",
+            "type": "exclusiveGateway",
+            "name": "High-risk LPs (score > 0.7)?"
+          },
+          {
+            "id": "Gateway_Decision",
+            "type": "exclusiveGateway"
+          },
+          {
+            "id": "Gateway_HighRiskMerge",
+            "type": "exclusiveGateway"
+          },
+          {
+            "id": "Gateway_Join",
+            "type": "parallelGateway"
+          },
+          {
+            "id": "Call_LPResponses",
+            "type": "callActivity",
+            "name": "Collect LP responses (one LP Response process per LP)",
+            "calledProcessId": "lp-response",
+            "inputMappings": [
+              {
+                "source": "=null",
+                "target": "lpResponse"
+              }
+            ],
+            "outputMappings": [
+              {
+                "source": "=lpResponse",
+                "target": "lpResponse"
+              }
+            ],
+            "multiInstance": {
+              "isSequential": false,
+              "inputCollection": "=lpList",
+              "inputElement": "lp",
+              "outputCollection": "lpResponses",
+              "outputElement": "=lpResponse"
+            }
+          },
+          {
+            "id": "Sub_GPReview",
+            "type": "subProcess",
+            "name": "GP review per high-risk LP"
+          }
+        ],
+        "edges": [
+          {
+            "id": "Flow_GPStart_Escalate",
+            "source": "Start_GP",
+            "target": "Task_Escalate"
+          },
+          {
+            "id": "Flow_Escalate_Approval",
+            "source": "Task_Escalate",
+            "target": "UserTask_GPApproval"
+          },
+          {
+            "id": "Flow_Approval_Merge",
+            "source": "UserTask_GPApproval",
+            "target": "Gateway_Decision"
+          },
+          {
+            "id": "Flow_APIDecision_Merge",
+            "source": "Boundary_GPDecision",
+            "target": "Gateway_Decision"
+          },
+          {
+            "id": "Flow_Merge_Apply",
+            "source": "Gateway_Decision",
+            "target": "Task_ApplyDecision"
+          },
+          {
+            "id": "Flow_Apply_End",
+            "source": "Task_ApplyDecision",
+            "target": "End_GP"
+          },
+          {
+            "id": "Flow_Start_Issue",
+            "source": "Start_Call",
+            "target": "Task_Issue"
+          },
+          {
+            "id": "Flow_Issue_Notify",
+            "source": "Task_Issue",
+            "target": "Task_Notify"
+          },
+          {
+            "id": "Flow_Notify_Collect",
+            "source": "Task_Notify",
+            "target": "Call_LPResponses"
+          },
+          {
+            "id": "Flow_Deadline_Finalize",
+            "source": "Boundary_Deadline",
+            "target": "Task_FinalizeDeadline"
+          },
+          {
+            "id": "Flow_Force_Finalize",
+            "source": "Boundary_Force",
+            "target": "Task_Finalize"
+          },
+          {
+            "id": "Flow_Cancel_Task",
+            "source": "Boundary_Cancel",
+            "target": "Task_Cancel"
+          },
+          {
+            "id": "Flow_CancelTask_End",
+            "source": "Task_Cancel",
+            "target": "End_Cancelled"
+          },
+          {
+            "id": "Flow_Collect_Merge",
+            "source": "Call_LPResponses",
+            "target": "Gateway_Responses"
+          },
+          {
+            "id": "Flow_Finalize_Merge",
+            "source": "Task_Finalize",
+            "target": "Gateway_Responses"
+          },
+          {
+            "id": "Flow_FinalizeDeadline_Merge",
+            "source": "Task_FinalizeDeadline",
+            "target": "Gateway_Responses"
+          },
+          {
+            "id": "Flow_Merge_Aggregate",
+            "source": "Gateway_Responses",
+            "target": "Task_Aggregate"
+          },
+          {
+            "id": "Flow_Aggregate_Predict",
+            "source": "Task_Aggregate",
+            "target": "Task_Predict"
+          },
+          {
+            "id": "Flow_Predict_Portfolio",
+            "source": "Task_Predict",
+            "target": "Task_Portfolio"
+          },
+          {
+            "id": "Flow_Portfolio_Split",
+            "source": "Task_Portfolio",
+            "target": "Gateway_Split"
+          },
+          {
+            "id": "Flow_Split_Gap",
+            "source": "Gateway_Split",
+            "target": "Gateway_Gap"
+          },
+          {
+            "id": "Flow_Gap_Yes",
+            "source": "Gateway_Gap",
+            "target": "Task_Bridge",
+            "condition": "=gapPercent > 10"
+          },
+          {
+            "id": "Flow_Bridge_Merge",
+            "source": "Task_Bridge",
+            "target": "Gateway_GapMerge"
+          },
+          {
+            "id": "Flow_Gap_No",
+            "source": "Gateway_Gap",
+            "target": "Gateway_GapMerge"
+          },
+          {
+            "id": "Flow_Split_HighRisk",
+            "source": "Gateway_Split",
+            "target": "Gateway_HighRisk"
+          },
+          {
+            "id": "Flow_HighRisk_Yes",
+            "source": "Gateway_HighRisk",
+            "target": "Sub_GPReview",
+            "condition": "=count(highRiskLPs) > 0"
+          },
+          {
+            "id": "Flow_Sub_Merge",
+            "source": "Sub_GPReview",
+            "target": "Gateway_HighRiskMerge"
+          },
+          {
+            "id": "Flow_HighRisk_No",
+            "source": "Gateway_HighRisk",
+            "target": "Gateway_HighRiskMerge"
+          },
+          {
+            "id": "Flow_GapMerge_Join",
+            "source": "Gateway_GapMerge",
+            "target": "Gateway_Join"
+          },
+          {
+            "id": "Flow_HRMerge_Join",
+            "source": "Gateway_HighRiskMerge",
+            "target": "Gateway_Join"
+          },
+          {
+            "id": "Flow_Join_Settle",
+            "source": "Gateway_Join",
+            "target": "Task_Settle"
+          },
+          {
+            "id": "Flow_Settle_Report",
+            "source": "Task_Settle",
+            "target": "Task_Report"
+          },
+          {
+            "id": "Flow_Report_End",
+            "source": "Task_Report",
+            "target": "End_Call"
+          }
+        ],
+        "boundaryEvents": [
+          {
+            "id": "Boundary_Cancel",
+            "attachedTo": "Call_LPResponses",
+            "type": "message",
+            "interrupting": true,
+            "definition": "cancelCall"
+          },
+          {
+            "id": "Boundary_Deadline",
+            "attachedTo": "Call_LPResponses",
+            "type": "timer",
+            "interrupting": true,
+            "definition": "=callDeadline"
+          },
+          {
+            "id": "Boundary_Force",
+            "attachedTo": "Call_LPResponses",
+            "type": "message",
+            "interrupting": true,
+            "definition": "forceSettlement"
+          },
+          {
+            "id": "Boundary_GPDecision",
+            "attachedTo": "UserTask_GPApproval",
+            "type": "message",
+            "interrupting": true,
+            "definition": "gpDecision"
+          }
+        ],
+        "bpmnXml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:zeebe=\"http://camunda.org/schema/zeebe/1.0\" xmlns:modeler=\"http://camunda.org/schema/modeler/1.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"Definitions_capital-call\" targetNamespace=\"http://bpmn.io/schema/bpmn\" exporter=\"gen_bpmn.py\" exporterVersion=\"1.0\" modeler:executionPlatform=\"Camunda Cloud\" modeler:executionPlatformVersion=\"8.10.0\">\n  <bpmn:process id=\"capital-call\" name=\"Intelligent Capital Call &amp; Liquidity Orchestration\" isExecutable=\"true\">\n    <bpmn:startEvent id=\"Start_Call\" name=\"GP issues capital call\">\n      <bpmn:outgoing>Flow_Start_Issue</bpmn:outgoing>\n    </bpmn:startEvent>\n    <bpmn:serviceTask id=\"Task_Issue\" name=\"Issue capital call\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"issueCapitalCall\" retries=\"3\"/>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Start_Issue</bpmn:incoming>\n      <bpmn:outgoing>Flow_Issue_Notify</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:serviceTask id=\"Task_Notify\" name=\"Notify LPs (SES batch)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"notifyLPs\" retries=\"3\"/>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Issue_Notify</bpmn:incoming>\n      <bpmn:outgoing>Flow_Notify_Collect</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:callActivity id=\"Call_LPResponses\" name=\"Collect LP responses (one LP Response process per LP)\">\n      <bpmn:extensionElements>\n        <zeebe:calledElement processId=\"lp-response\" propagateAllChildVariables=\"false\"/>\n        <zeebe:ioMapping>\n          <zeebe:input source=\"=null\" target=\"lpResponse\"/>\n          <zeebe:output source=\"=lpResponse\" target=\"lpResponse\"/>\n        </zeebe:ioMapping>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Notify_Collect</bpmn:incoming>\n      <bpmn:outgoing>Flow_Collect_Merge</bpmn:outgoing>\n      <bpmn:multiInstanceLoopCharacteristics>\n        <bpmn:extensionElements>\n          <zeebe:loopCharacteristics inputCollection=\"=lpList\" inputElement=\"lp\" outputCollection=\"lpResponses\" outputElement=\"=lpResponse\"/>\n        </bpmn:extensionElements>\n      </bpmn:multiInstanceLoopCharacteristics>\n    </bpmn:callActivity>\n    <bpmn:boundaryEvent id=\"Boundary_Deadline\" name=\"Hard deadline\" attachedToRef=\"Call_LPResponses\">\n      <bpmn:outgoing>Flow_Deadline_Finalize</bpmn:outgoing>\n      <bpmn:timerEventDefinition>\n        <bpmn:timeDuration xsi:type=\"bpmn:tFormalExpression\">=callDeadline</bpmn:timeDuration>\n      </bpmn:timerEventDefinition>\n    </bpmn:boundaryEvent>\n    <bpmn:boundaryEvent id=\"Boundary_Force\" name=\"GP forces settlement\" attachedToRef=\"Call_LPResponses\">\n      <bpmn:outgoing>Flow_Force_Finalize</bpmn:outgoing>\n      <bpmn:messageEventDefinition messageRef=\"Message_ForceSettlement\"/>\n    </bpmn:boundaryEvent>\n    <bpmn:boundaryEvent id=\"Boundary_Cancel\" name=\"GP cancels call\" attachedToRef=\"Call_LPResponses\">\n      <bpmn:outgoing>Flow_Cancel_Task</bpmn:outgoing>\n      <bpmn:messageEventDefinition messageRef=\"Message_CancelCall\"/>\n    </bpmn:boundaryEvent>\n    <bpmn:serviceTask id=\"Task_Finalize\" name=\"Close response window (default outstanding LPs)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"finalizeResponses\" retries=\"3\"/>\n        <zeebe:taskHeaders>\n          <zeebe:header key=\"reason\" value=\"force-settlement\"/>\n        </zeebe:taskHeaders>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Force_Finalize</bpmn:incoming>\n      <bpmn:outgoing>Flow_Finalize_Merge</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:serviceTask id=\"Task_FinalizeDeadline\" name=\"Close response window (deadline)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"finalizeResponses\" retries=\"3\"/>\n        <zeebe:taskHeaders>\n          <zeebe:header key=\"reason\" value=\"hard-deadline\"/>\n        </zeebe:taskHeaders>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Deadline_Finalize</bpmn:incoming>\n      <bpmn:outgoing>Flow_FinalizeDeadline_Merge</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:serviceTask id=\"Task_Cancel\" name=\"Mark call cancelled\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"markCallCancelled\" retries=\"3\"/>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Cancel_Task</bpmn:incoming>\n      <bpmn:outgoing>Flow_CancelTask_End</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:endEvent id=\"End_Cancelled\" name=\"Capital call cancelled\">\n      <bpmn:incoming>Flow_CancelTask_End</bpmn:incoming>\n    </bpmn:endEvent>\n    <bpmn:exclusiveGateway id=\"Gateway_Responses\" name=\"\">\n      <bpmn:incoming>Flow_Collect_Merge</bpmn:incoming>\n      <bpmn:incoming>Flow_Finalize_Merge</bpmn:incoming>\n      <bpmn:incoming>Flow_FinalizeDeadline_Merge</bpmn:incoming>\n      <bpmn:outgoing>Flow_Merge_Aggregate</bpmn:outgoing>\n    </bpmn:exclusiveGateway>\n    <bpmn:serviceTask id=\"Task_Aggregate\" name=\"Aggregate liquidity\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"aggregateLiquidity\" retries=\"3\"/>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Merge_Aggregate</bpmn:incoming>\n      <bpmn:outgoing>Flow_Aggregate_Predict</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:serviceTask id=\"Task_Predict\" name=\"Predict LP default risk (ML)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"predictDefaultRisk\" retries=\"3\"/>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Aggregate_Predict</bpmn:incoming>\n      <bpmn:outgoing>Flow_Predict_Portfolio</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:serviceTask id=\"Task_Portfolio\" name=\"Score LP portfolio (concentration)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"scoreLPPortfolio\" retries=\"3\"/>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Predict_Portfolio</bpmn:incoming>\n      <bpmn:outgoing>Flow_Portfolio_Split</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:parallelGateway id=\"Gateway_Split\" name=\"\">\n      <bpmn:incoming>Flow_Portfolio_Split</bpmn:incoming>\n      <bpmn:outgoing>Flow_Split_Gap</bpmn:outgoing>\n      <bpmn:outgoing>Flow_Split_HighRisk</bpmn:outgoing>\n    </bpmn:parallelGateway>\n    <bpmn:exclusiveGateway id=\"Gateway_Gap\" name=\"Liquidity gap &gt; 10%?\" default=\"Flow_Gap_No\">\n      <bpmn:incoming>Flow_Split_Gap</bpmn:incoming>\n      <bpmn:outgoing>Flow_Gap_Yes</bpmn:outgoing>\n      <bpmn:outgoing>Flow_Gap_No</bpmn:outgoing>\n    </bpmn:exclusiveGateway>\n    <bpmn:serviceTask id=\"Task_Bridge\" name=\"Trigger bridge (credit line drawdown)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"triggerBridge\" retries=\"3\"/>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Gap_Yes</bpmn:incoming>\n      <bpmn:outgoing>Flow_Bridge_Merge</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:exclusiveGateway id=\"Gateway_GapMerge\" name=\"\">\n      <bpmn:incoming>Flow_Bridge_Merge</bpmn:incoming>\n      <bpmn:incoming>Flow_Gap_No</bpmn:incoming>\n      <bpmn:outgoing>Flow_GapMerge_Join</bpmn:outgoing>\n    </bpmn:exclusiveGateway>\n    <bpmn:exclusiveGateway id=\"Gateway_HighRisk\" name=\"High-risk LPs (score &gt; 0.7)?\" default=\"Flow_HighRisk_No\">\n      <bpmn:incoming>Flow_Split_HighRisk</bpmn:incoming>\n      <bpmn:outgoing>Flow_HighRisk_Yes</bpmn:outgoing>\n      <bpmn:outgoing>Flow_HighRisk_No</bpmn:outgoing>\n    </bpmn:exclusiveGateway>\n    <bpmn:subProcess id=\"Sub_GPReview\" name=\"GP review per high-risk LP\">\n      <bpmn:extensionElements>\n        <zeebe:ioMapping>\n          <zeebe:input source=\"=null\" target=\"gpAction\"/>\n          <zeebe:input source=\"=null\" target=\"gpName\"/>\n          <zeebe:input source=\"=null\" target=\"gpComment\"/>\n        </zeebe:ioMapping>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_HighRisk_Yes</bpmn:incoming>\n      <bpmn:outgoing>Flow_Sub_Merge</bpmn:outgoing>\n      <bpmn:multiInstanceLoopCharacteristics>\n        <bpmn:extensionElements>\n          <zeebe:loopCharacteristics inputCollection=\"=highRiskLPs\" inputElement=\"highRiskLp\" outputCollection=\"gpDecisions\" outputElement=\"={lpId: highRiskLp.lpId, riskScore: highRiskLp.riskScore, action: gpAction, gpName: gpName}\"/>\n        </bpmn:extensionElements>\n      </bpmn:multiInstanceLoopCharacteristics>\n      <bpmn:startEvent id=\"Start_GP\" name=\"\">\n        <bpmn:outgoing>Flow_GPStart_Escalate</bpmn:outgoing>\n      </bpmn:startEvent>\n      <bpmn:serviceTask id=\"Task_Escalate\" name=\"Escalate to GP (Slack alert)\">\n        <bpmn:extensionElements>\n          <zeebe:taskDefinition type=\"escalateToGP\" retries=\"3\"/>\n        </bpmn:extensionElements>\n        <bpmn:incoming>Flow_GPStart_Escalate</bpmn:incoming>\n        <bpmn:outgoing>Flow_Escalate_Approval</bpmn:outgoing>\n      </bpmn:serviceTask>\n      <bpmn:userTask id=\"UserTask_GPApproval\" name=\"GP approval gate: waive or enforce\">\n        <bpmn:extensionElements>\n          <zeebe:userTask/>\n          <zeebe:formDefinition formId=\"gp-approval-form\"/>\n          <zeebe:assignmentDefinition candidateGroups=\"gp-investment-committee\"/>\n          <zeebe:priorityDefinition priority=\"80\"/>\n        </bpmn:extensionElements>\n        <bpmn:incoming>Flow_Escalate_Approval</bpmn:incoming>\n        <bpmn:outgoing>Flow_Approval_Merge</bpmn:outgoing>\n      </bpmn:userTask>\n      <bpmn:boundaryEvent id=\"Boundary_GPDecision\" name=\"GP decision via API\" attachedToRef=\"UserTask_GPApproval\">\n        <bpmn:outgoing>Flow_APIDecision_Merge</bpmn:outgoing>\n        <bpmn:messageEventDefinition messageRef=\"Message_GPDecision\"/>\n      </bpmn:boundaryEvent>\n      <bpmn:exclusiveGateway id=\"Gateway_Decision\" name=\"\">\n        <bpmn:incoming>Flow_Approval_Merge</bpmn:incoming>\n        <bpmn:incoming>Flow_APIDecision_Merge</bpmn:incoming>\n        <bpmn:outgoing>Flow_Merge_Apply</bpmn:outgoing>\n      </bpmn:exclusiveGateway>\n      <bpmn:serviceTask id=\"Task_ApplyDecision\" name=\"Apply GP decision (enforcement notice if enforce)\">\n        <bpmn:extensionElements>\n          <zeebe:taskDefinition type=\"applyGPDecision\" retries=\"3\"/>\n        </bpmn:extensionElements>\n        <bpmn:incoming>Flow_Merge_Apply</bpmn:incoming>\n        <bpmn:outgoing>Flow_Apply_End</bpmn:outgoing>\n      </bpmn:serviceTask>\n      <bpmn:endEvent id=\"End_GP\" name=\"\">\n        <bpmn:incoming>Flow_Apply_End</bpmn:incoming>\n      </bpmn:endEvent>\n      <bpmn:sequenceFlow id=\"Flow_GPStart_Escalate\" sourceRef=\"Start_GP\" targetRef=\"Task_Escalate\"/>\n      <bpmn:sequenceFlow id=\"Flow_Escalate_Approval\" sourceRef=\"Task_Escalate\" targetRef=\"UserTask_GPApproval\"/>\n      <bpmn:sequenceFlow id=\"Flow_Approval_Merge\" sourceRef=\"UserTask_GPApproval\" targetRef=\"Gateway_Decision\"/>\n      <bpmn:sequenceFlow id=\"Flow_APIDecision_Merge\" sourceRef=\"Boundary_GPDecision\" targetRef=\"Gateway_Decision\"/>\n      <bpmn:sequenceFlow id=\"Flow_Merge_Apply\" sourceRef=\"Gateway_Decision\" targetRef=\"Task_ApplyDecision\"/>\n      <bpmn:sequenceFlow id=\"Flow_Apply_End\" sourceRef=\"Task_ApplyDecision\" targetRef=\"End_GP\"/>\n    </bpmn:subProcess>\n    <bpmn:exclusiveGateway id=\"Gateway_HighRiskMerge\" name=\"\">\n      <bpmn:incoming>Flow_Sub_Merge</bpmn:incoming>\n      <bpmn:incoming>Flow_HighRisk_No</bpmn:incoming>\n      <bpmn:outgoing>Flow_HRMerge_Join</bpmn:outgoing>\n    </bpmn:exclusiveGateway>\n    <bpmn:parallelGateway id=\"Gateway_Join\" name=\"\">\n      <bpmn:incoming>Flow_GapMerge_Join</bpmn:incoming>\n      <bpmn:incoming>Flow_HRMerge_Join</bpmn:incoming>\n      <bpmn:outgoing>Flow_Join_Settle</bpmn:outgoing>\n    </bpmn:parallelGateway>\n    <bpmn:serviceTask id=\"Task_Settle\" name=\"Settle &amp; reconcile (wires + ledger)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"settleAndReconcile\" retries=\"3\"/>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Join_Settle</bpmn:incoming>\n      <bpmn:outgoing>Flow_Settle_Report</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:serviceTask id=\"Task_Report\" name=\"Emit liquidity report (PDF + JSON)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"emitLiquidityReport\" retries=\"3\"/>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Settle_Report</bpmn:incoming>\n      <bpmn:outgoing>Flow_Report_End</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:endEvent id=\"End_Call\" name=\"Capital call settled &amp; reported\">\n      <bpmn:incoming>Flow_Report_End</bpmn:incoming>\n    </bpmn:endEvent>\n    <bpmn:sequenceFlow id=\"Flow_Start_Issue\" sourceRef=\"Start_Call\" targetRef=\"Task_Issue\"/>\n    <bpmn:sequenceFlow id=\"Flow_Issue_Notify\" sourceRef=\"Task_Issue\" targetRef=\"Task_Notify\"/>\n    <bpmn:sequenceFlow id=\"Flow_Notify_Collect\" sourceRef=\"Task_Notify\" targetRef=\"Call_LPResponses\"/>\n    <bpmn:sequenceFlow id=\"Flow_Deadline_Finalize\" sourceRef=\"Boundary_Deadline\" targetRef=\"Task_FinalizeDeadline\"/>\n    <bpmn:sequenceFlow id=\"Flow_Force_Finalize\" sourceRef=\"Boundary_Force\" targetRef=\"Task_Finalize\"/>\n    <bpmn:sequenceFlow id=\"Flow_Cancel_Task\" sourceRef=\"Boundary_Cancel\" targetRef=\"Task_Cancel\"/>\n    <bpmn:sequenceFlow id=\"Flow_CancelTask_End\" sourceRef=\"Task_Cancel\" targetRef=\"End_Cancelled\"/>\n    <bpmn:sequenceFlow id=\"Flow_Collect_Merge\" sourceRef=\"Call_LPResponses\" targetRef=\"Gateway_Responses\"/>\n    <bpmn:sequenceFlow id=\"Flow_Finalize_Merge\" sourceRef=\"Task_Finalize\" targetRef=\"Gateway_Responses\"/>\n    <bpmn:sequenceFlow id=\"Flow_FinalizeDeadline_Merge\" sourceRef=\"Task_FinalizeDeadline\" targetRef=\"Gateway_Responses\"/>\n    <bpmn:sequenceFlow id=\"Flow_Merge_Aggregate\" sourceRef=\"Gateway_Responses\" targetRef=\"Task_Aggregate\"/>\n    <bpmn:sequenceFlow id=\"Flow_Aggregate_Predict\" sourceRef=\"Task_Aggregate\" targetRef=\"Task_Predict\"/>\n    <bpmn:sequenceFlow id=\"Flow_Predict_Portfolio\" sourceRef=\"Task_Predict\" targetRef=\"Task_Portfolio\"/>\n    <bpmn:sequenceFlow id=\"Flow_Portfolio_Split\" sourceRef=\"Task_Portfolio\" targetRef=\"Gateway_Split\"/>\n    <bpmn:sequenceFlow id=\"Flow_Split_Gap\" sourceRef=\"Gateway_Split\" targetRef=\"Gateway_Gap\"/>\n    <bpmn:sequenceFlow id=\"Flow_Gap_Yes\" name=\"yes\" sourceRef=\"Gateway_Gap\" targetRef=\"Task_Bridge\">\n      <bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">=gapPercent &gt; 10</bpmn:conditionExpression>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"Flow_Bridge_Merge\" sourceRef=\"Task_Bridge\" targetRef=\"Gateway_GapMerge\"/>\n    <bpmn:sequenceFlow id=\"Flow_Gap_No\" name=\"no\" sourceRef=\"Gateway_Gap\" targetRef=\"Gateway_GapMerge\"/>\n    <bpmn:sequenceFlow id=\"Flow_Split_HighRisk\" sourceRef=\"Gateway_Split\" targetRef=\"Gateway_HighRisk\"/>\n    <bpmn:sequenceFlow id=\"Flow_HighRisk_Yes\" name=\"yes\" sourceRef=\"Gateway_HighRisk\" targetRef=\"Sub_GPReview\">\n      <bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">=count(highRiskLPs) &gt; 0</bpmn:conditionExpression>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"Flow_Sub_Merge\" sourceRef=\"Sub_GPReview\" targetRef=\"Gateway_HighRiskMerge\"/>\n    <bpmn:sequenceFlow id=\"Flow_HighRisk_No\" name=\"no\" sourceRef=\"Gateway_HighRisk\" targetRef=\"Gateway_HighRiskMerge\"/>\n    <bpmn:sequenceFlow id=\"Flow_GapMerge_Join\" sourceRef=\"Gateway_GapMerge\" targetRef=\"Gateway_Join\"/>\n    <bpmn:sequenceFlow id=\"Flow_HRMerge_Join\" sourceRef=\"Gateway_HighRiskMerge\" targetRef=\"Gateway_Join\"/>\n    <bpmn:sequenceFlow id=\"Flow_Join_Settle\" sourceRef=\"Gateway_Join\" targetRef=\"Task_Settle\"/>\n    <bpmn:sequenceFlow id=\"Flow_Settle_Report\" sourceRef=\"Task_Settle\" targetRef=\"Task_Report\"/>\n    <bpmn:sequenceFlow id=\"Flow_Report_End\" sourceRef=\"Task_Report\" targetRef=\"End_Call\"/>\n  </bpmn:process>\n  <bpmn:message id=\"Message_ForceSettlement\" name=\"forceSettlement\">\n    <bpmn:extensionElements>\n      <zeebe:subscription correlationKey=\"=callId\"/>\n    </bpmn:extensionElements>\n  </bpmn:message>\n  <bpmn:message id=\"Message_CancelCall\" name=\"cancelCall\">\n    <bpmn:extensionElements>\n      <zeebe:subscription correlationKey=\"=callId\"/>\n    </bpmn:extensionElements>\n  </bpmn:message>\n  <bpmn:message id=\"Message_GPDecision\" name=\"gpDecision\">\n    <bpmn:extensionElements>\n      <zeebe:subscription correlationKey=\"=callId + &quot;:&quot; + highRiskLp.lpId\"/>\n    </bpmn:extensionElements>\n  </bpmn:message>\n  <bpmndi:BPMNDiagram id=\"Diagram_capital-call\">\n    <bpmndi:BPMNPlane id=\"Plane_capital-call\" bpmnElement=\"capital-call\">\n      <bpmndi:BPMNShape id=\"Start_Call_di\" bpmnElement=\"Start_Call\">\n        <dc:Bounds x=\"150\" y=\"282\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"130\" y=\"322\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Issue_di\" bpmnElement=\"Task_Issue\">\n        <dc:Bounds x=\"230\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Notify_di\" bpmnElement=\"Task_Notify\">\n        <dc:Bounds x=\"380\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Call_LPResponses_di\" bpmnElement=\"Call_LPResponses\">\n        <dc:Bounds x=\"530\" y=\"260\" width=\"140\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Boundary_Deadline_di\" bpmnElement=\"Boundary_Deadline\">\n        <dc:Bounds x=\"552\" y=\"322\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"490\" y=\"360\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Boundary_Force_di\" bpmnElement=\"Boundary_Force\">\n        <dc:Bounds x=\"612\" y=\"322\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"652\" y=\"360\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Boundary_Cancel_di\" bpmnElement=\"Boundary_Cancel\">\n        <dc:Bounds x=\"622\" y=\"242\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"560\" y=\"210\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Finalize_di\" bpmnElement=\"Task_Finalize\">\n        <dc:Bounds x=\"550\" y=\"410\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_FinalizeDeadline_di\" bpmnElement=\"Task_FinalizeDeadline\">\n        <dc:Bounds x=\"400\" y=\"410\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Cancel_di\" bpmnElement=\"Task_Cancel\">\n        <dc:Bounds x=\"700\" y=\"100\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"End_Cancelled_di\" bpmnElement=\"End_Cancelled\">\n        <dc:Bounds x=\"850\" y=\"122\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"830\" y=\"162\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_Responses_di\" bpmnElement=\"Gateway_Responses\" isMarkerVisible=\"true\">\n        <dc:Bounds x=\"720\" y=\"275\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"700\" y=\"329\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Aggregate_di\" bpmnElement=\"Task_Aggregate\">\n        <dc:Bounds x=\"820\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Predict_di\" bpmnElement=\"Task_Predict\">\n        <dc:Bounds x=\"970\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Portfolio_di\" bpmnElement=\"Task_Portfolio\">\n        <dc:Bounds x=\"1120\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_Split_di\" bpmnElement=\"Gateway_Split\">\n        <dc:Bounds x=\"1270\" y=\"275\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1250\" y=\"329\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_Gap_di\" bpmnElement=\"Gateway_Gap\" isMarkerVisible=\"true\">\n        <dc:Bounds x=\"1370\" y=\"105\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1350\" y=\"159\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Bridge_di\" bpmnElement=\"Task_Bridge\">\n        <dc:Bounds x=\"1500\" y=\"90\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_GapMerge_di\" bpmnElement=\"Gateway_GapMerge\" isMarkerVisible=\"true\">\n        <dc:Bounds x=\"2160\" y=\"105\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"2140\" y=\"159\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_HighRisk_di\" bpmnElement=\"Gateway_HighRisk\" isMarkerVisible=\"true\">\n        <dc:Bounds x=\"1370\" y=\"445\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1350\" y=\"499\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Sub_GPReview_di\" bpmnElement=\"Sub_GPReview\" isExpanded=\"true\">\n        <dc:Bounds x=\"1460\" y=\"380\" width=\"660\" height=\"200\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Start_GP_di\" bpmnElement=\"Start_GP\">\n        <dc:Bounds x=\"1480\" y=\"452\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1460\" y=\"492\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Escalate_di\" bpmnElement=\"Task_Escalate\">\n        <dc:Bounds x=\"1540\" y=\"430\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"UserTask_GPApproval_di\" bpmnElement=\"UserTask_GPApproval\">\n        <dc:Bounds x=\"1680\" y=\"430\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Boundary_GPDecision_di\" bpmnElement=\"Boundary_GPDecision\">\n        <dc:Bounds x=\"1712\" y=\"492\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1692\" y=\"532\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_Decision_di\" bpmnElement=\"Gateway_Decision\" isMarkerVisible=\"true\">\n        <dc:Bounds x=\"1820\" y=\"445\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1800\" y=\"499\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_ApplyDecision_di\" bpmnElement=\"Task_ApplyDecision\">\n        <dc:Bounds x=\"1910\" y=\"430\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"End_GP_di\" bpmnElement=\"End_GP\">\n        <dc:Bounds x=\"2050\" y=\"452\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"2030\" y=\"492\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_HighRiskMerge_di\" bpmnElement=\"Gateway_HighRiskMerge\" isMarkerVisible=\"true\">\n        <dc:Bounds x=\"2160\" y=\"445\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"2140\" y=\"499\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_Join_di\" bpmnElement=\"Gateway_Join\">\n        <dc:Bounds x=\"2260\" y=\"275\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"2240\" y=\"329\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Settle_di\" bpmnElement=\"Task_Settle\">\n        <dc:Bounds x=\"2360\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_Report_di\" bpmnElement=\"Task_Report\">\n        <dc:Bounds x=\"2510\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"End_Call_di\" bpmnElement=\"End_Call\">\n        <dc:Bounds x=\"2660\" y=\"282\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"2640\" y=\"322\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNEdge id=\"Flow_Start_Issue_di\" bpmnElement=\"Flow_Start_Issue\">\n        <di:waypoint x=\"186\" y=\"300\"/>\n        <di:waypoint x=\"230\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Issue_Notify_di\" bpmnElement=\"Flow_Issue_Notify\">\n        <di:waypoint x=\"330\" y=\"300\"/>\n        <di:waypoint x=\"380\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Notify_Collect_di\" bpmnElement=\"Flow_Notify_Collect\">\n        <di:waypoint x=\"480\" y=\"300\"/>\n        <di:waypoint x=\"530\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Deadline_Finalize_di\" bpmnElement=\"Flow_Deadline_Finalize\">\n        <di:waypoint x=\"570\" y=\"358\"/>\n        <di:waypoint x=\"570\" y=\"380\"/>\n        <di:waypoint x=\"450\" y=\"380\"/>\n        <di:waypoint x=\"450\" y=\"410\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Force_Finalize_di\" bpmnElement=\"Flow_Force_Finalize\">\n        <di:waypoint x=\"630\" y=\"358\"/>\n        <di:waypoint x=\"630\" y=\"410\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Cancel_Task_di\" bpmnElement=\"Flow_Cancel_Task\">\n        <di:waypoint x=\"640\" y=\"242\"/>\n        <di:waypoint x=\"640\" y=\"140\"/>\n        <di:waypoint x=\"700\" y=\"140\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_CancelTask_End_di\" bpmnElement=\"Flow_CancelTask_End\">\n        <di:waypoint x=\"800\" y=\"140\"/>\n        <di:waypoint x=\"850\" y=\"140\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Collect_Merge_di\" bpmnElement=\"Flow_Collect_Merge\">\n        <di:waypoint x=\"670\" y=\"300\"/>\n        <di:waypoint x=\"720\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Finalize_Merge_di\" bpmnElement=\"Flow_Finalize_Merge\">\n        <di:waypoint x=\"650\" y=\"450\"/>\n        <di:waypoint x=\"745\" y=\"450\"/>\n        <di:waypoint x=\"745\" y=\"325\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_FinalizeDeadline_Merge_di\" bpmnElement=\"Flow_FinalizeDeadline_Merge\">\n        <di:waypoint x=\"450\" y=\"490\"/>\n        <di:waypoint x=\"450\" y=\"520\"/>\n        <di:waypoint x=\"745\" y=\"520\"/>\n        <di:waypoint x=\"745\" y=\"325\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Merge_Aggregate_di\" bpmnElement=\"Flow_Merge_Aggregate\">\n        <di:waypoint x=\"770\" y=\"300\"/>\n        <di:waypoint x=\"820\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Aggregate_Predict_di\" bpmnElement=\"Flow_Aggregate_Predict\">\n        <di:waypoint x=\"920\" y=\"300\"/>\n        <di:waypoint x=\"970\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Predict_Portfolio_di\" bpmnElement=\"Flow_Predict_Portfolio\">\n        <di:waypoint x=\"1070\" y=\"300\"/>\n        <di:waypoint x=\"1120\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Portfolio_Split_di\" bpmnElement=\"Flow_Portfolio_Split\">\n        <di:waypoint x=\"1220\" y=\"300\"/>\n        <di:waypoint x=\"1270\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Split_Gap_di\" bpmnElement=\"Flow_Split_Gap\">\n        <di:waypoint x=\"1295\" y=\"275\"/>\n        <di:waypoint x=\"1295\" y=\"130\"/>\n        <di:waypoint x=\"1370\" y=\"130\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Gap_Yes_di\" bpmnElement=\"Flow_Gap_Yes\">\n        <di:waypoint x=\"1420\" y=\"130\"/>\n        <di:waypoint x=\"1500\" y=\"130\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Bridge_Merge_di\" bpmnElement=\"Flow_Bridge_Merge\">\n        <di:waypoint x=\"1600\" y=\"130\"/>\n        <di:waypoint x=\"2160\" y=\"130\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Gap_No_di\" bpmnElement=\"Flow_Gap_No\">\n        <di:waypoint x=\"1395\" y=\"105\"/>\n        <di:waypoint x=\"1395\" y=\"40\"/>\n        <di:waypoint x=\"2185\" y=\"40\"/>\n        <di:waypoint x=\"2185\" y=\"105\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Split_HighRisk_di\" bpmnElement=\"Flow_Split_HighRisk\">\n        <di:waypoint x=\"1295\" y=\"325\"/>\n        <di:waypoint x=\"1295\" y=\"470\"/>\n        <di:waypoint x=\"1370\" y=\"470\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_HighRisk_Yes_di\" bpmnElement=\"Flow_HighRisk_Yes\">\n        <di:waypoint x=\"1420\" y=\"470\"/>\n        <di:waypoint x=\"1460\" y=\"470\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_GPStart_Escalate_di\" bpmnElement=\"Flow_GPStart_Escalate\">\n        <di:waypoint x=\"1516\" y=\"470\"/>\n        <di:waypoint x=\"1540\" y=\"470\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Escalate_Approval_di\" bpmnElement=\"Flow_Escalate_Approval\">\n        <di:waypoint x=\"1640\" y=\"470\"/>\n        <di:waypoint x=\"1680\" y=\"470\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Approval_Merge_di\" bpmnElement=\"Flow_Approval_Merge\">\n        <di:waypoint x=\"1780\" y=\"470\"/>\n        <di:waypoint x=\"1820\" y=\"470\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_APIDecision_Merge_di\" bpmnElement=\"Flow_APIDecision_Merge\">\n        <di:waypoint x=\"1730\" y=\"528\"/>\n        <di:waypoint x=\"1730\" y=\"550\"/>\n        <di:waypoint x=\"1845\" y=\"550\"/>\n        <di:waypoint x=\"1845\" y=\"495\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Merge_Apply_di\" bpmnElement=\"Flow_Merge_Apply\">\n        <di:waypoint x=\"1870\" y=\"470\"/>\n        <di:waypoint x=\"1910\" y=\"470\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Apply_End_di\" bpmnElement=\"Flow_Apply_End\">\n        <di:waypoint x=\"2010\" y=\"470\"/>\n        <di:waypoint x=\"2050\" y=\"470\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Sub_Merge_di\" bpmnElement=\"Flow_Sub_Merge\">\n        <di:waypoint x=\"2120\" y=\"470\"/>\n        <di:waypoint x=\"2160\" y=\"470\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_HighRisk_No_di\" bpmnElement=\"Flow_HighRisk_No\">\n        <di:waypoint x=\"1395\" y=\"495\"/>\n        <di:waypoint x=\"1395\" y=\"620\"/>\n        <di:waypoint x=\"2185\" y=\"620\"/>\n        <di:waypoint x=\"2185\" y=\"495\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_GapMerge_Join_di\" bpmnElement=\"Flow_GapMerge_Join\">\n        <di:waypoint x=\"2210\" y=\"130\"/>\n        <di:waypoint x=\"2285\" y=\"130\"/>\n        <di:waypoint x=\"2285\" y=\"275\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_HRMerge_Join_di\" bpmnElement=\"Flow_HRMerge_Join\">\n        <di:waypoint x=\"2210\" y=\"470\"/>\n        <di:waypoint x=\"2285\" y=\"470\"/>\n        <di:waypoint x=\"2285\" y=\"325\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Join_Settle_di\" bpmnElement=\"Flow_Join_Settle\">\n        <di:waypoint x=\"2310\" y=\"300\"/>\n        <di:waypoint x=\"2360\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Settle_Report_di\" bpmnElement=\"Flow_Settle_Report\">\n        <di:waypoint x=\"2460\" y=\"300\"/>\n        <di:waypoint x=\"2510\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Report_End_di\" bpmnElement=\"Flow_Report_End\">\n        <di:waypoint x=\"2610\" y=\"300\"/>\n        <di:waypoint x=\"2660\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n</bpmn:definitions>\n",
+        "reducibility": {
+          "isReducible": true
+        },
+        "safety": {
+          "isSafe": true
+        }
+      },
+      "variables": {
+        "names": [
+          "amountUSD",
+          "bridgeResult",
+          "bridgeTriggered",
+          "callDeadline",
+          "callId",
+          "deadlineAt",
+          "deadlineDays",
+          "drawAmounts",
+          "fundId",
+          "gpDecisions",
+          "highRiskLPs",
+          "loopCounter",
+          "lp",
+          "lpList",
+          "lpResponse",
+          "lpResponses",
+          "responseStatus",
+          "secondsPerDay",
+          "settlementMode",
+          "targetAmountUSD",
+          "waitFinal",
+          "waitStage1",
+          "waitStage2",
+          "waitStage3"
+        ],
+        "inferredTypes": {
+          "amountUSD": "number",
+          "bridgeResult": "null",
+          "bridgeTriggered": "boolean",
+          "callDeadline": "string",
+          "callId": "string",
+          "deadlineAt": "string",
+          "deadlineDays": "number",
+          "drawAmounts": "object",
+          "fundId": "string",
+          "gpDecisions": "array",
+          "highRiskLPs": "array",
+          "loopCounter": "number",
+          "lp": "object",
+          "lpList": "array",
+          "lpResponse": "object",
+          "lpResponses": "array",
+          "responseStatus": "string",
+          "secondsPerDay": "number",
+          "settlementMode": "string",
+          "targetAmountUSD": "number",
+          "waitFinal": "string",
+          "waitStage1": "string",
+          "waitStage2": "string",
+          "waitStage3": "string"
+        },
+        "payloadSizeP95Bytes": 191,
+        "payloadSizeMaxBytes": 1569,
+        "findings": [
+          "Call activity \"Call_LPResponses\" → \"lp-response\": the approximate true input set is waitFinal, waitStage1, waitStage2, waitStage3. Before you port, cross-check it against the ioMapping of this call site."
+        ]
+      },
+      "jobTypes": [
+        "aggregateLiquidity",
+        "applyGPDecision",
+        "emitLiquidityReport",
+        "escalateToGP",
+        "finalizeResponses",
+        "issueCapitalCall",
+        "markCallCancelled",
+        "notifyLPs",
+        "predictDefaultRisk",
+        "scoreLPPortfolio",
+        "settleAndReconcile",
+        "triggerBridge"
+      ],
+      "messages": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Boundary_Force",
+          "position": "boundary",
+          "messageName": "forceSettlement",
+          "correlationKey": "=callId",
+          "correlationClass": "simple-variable"
+        },
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Boundary_Cancel",
+          "position": "boundary",
+          "messageName": "cancelCall",
+          "correlationKey": "=callId",
+          "correlationClass": "simple-variable"
+        },
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Boundary_GPDecision",
+          "position": "boundary",
+          "messageName": "gpDecision",
+          "correlationKey": "=callId + \":\" + highRiskLp.lpId",
+          "correlationClass": "computed"
+        }
+      ],
+      "forms": [
+        "gp-approval-form"
+      ],
+      "migrationNotes": [
+        "MANUAL: none",
+        "AUTO+FLAG: 13 item(s) — see elements[]"
+      ]
+    },
+    {
+      "processDefinitionId": "lp-response",
+      "name": "LP Response (per LP)",
+      "latestVersion": 1,
+      "resourceName": "lp-response.bpmn",
+      "sizeUnits": 76,
+      "complexity": "High",
+      "grade": "D",
+      "runtime": {
+        "activeInstances": 0,
+        "startsPerDay": 2.857142857142857,
+        "durationP50Seconds": 6.294,
+        "durationP95Seconds": 52.646,
+        "durationMaxSeconds": 53.636,
+        "openIncidents": 0
+      },
+      "projection": {
+        "projectedEventsP95": 30.535714285714285,
+        "projectedEventsMax": 30.535714285714285,
+        "historyRiskBand": "fine"
+      },
+      "elements": {
+        "endEvent.none": {
+          "count": 2,
+          "class": "AUTO"
+        },
+        "gateway.eventBased": {
+          "count": 4,
+          "class": "AUTO"
+        },
+        "gateway.exclusive": {
+          "count": 1,
+          "class": "AUTO+FLAG",
+          "findings": [
+            "No default flow is declared. In Camunda, an unmatched condition raises an incident. The generated Go needs an explicit branch for the unmatched case. Do not assume that one path always matches."
+          ]
+        },
+        "message.intermediateCatch.computed": {
+          "count": 4,
+          "class": "ASSISTED"
+        },
+        "serviceTask": {
+          "count": 5,
+          "class": "AUTO"
+        },
+        "startEvent.none": {
+          "count": 1,
+          "class": "AUTO"
+        },
+        "timer.intermediateCatch": {
+          "count": 4,
+          "class": "AUTO"
+        }
+      },
+      "controlFlowGraph": {
+        "processId": "lp-response",
+        "nodes": [
+          {
+            "id": "Start_LP",
+            "type": "startEvent",
+            "name": "LP notified"
+          },
+          {
+            "id": "End_Defaulted",
+            "type": "endEvent",
+            "name": "LP defaulted"
+          },
+          {
+            "id": "End_Committed",
+            "type": "endEvent",
+            "name": "LP committed"
+          },
+          {
+            "id": "Task_FollowUp1",
+            "type": "serviceTask",
+            "name": "Auto follow-up: Email reminder (D+3)",
+            "jobType": "autoFollowUp"
+          },
+          {
+            "id": "Task_FollowUp2",
+            "type": "serviceTask",
+            "name": "Auto follow-up: Phone call (D+7)",
+            "jobType": "autoFollowUp"
+          },
+          {
+            "id": "Task_FollowUp3",
+            "type": "serviceTask",
+            "name": "Auto follow-up: Legal notice (D+10)",
+            "jobType": "autoFollowUp"
+          },
+          {
+            "id": "Task_RecordDefault",
+            "type": "serviceTask",
+            "name": "Record LP default",
+            "jobType": "recordLPResponse"
+          },
+          {
+            "id": "Task_RecordCommit",
+            "type": "serviceTask",
+            "name": "Record LP commitment",
+            "jobType": "recordLPResponse"
+          },
+          {
+            "id": "Gateway_Await1",
+            "type": "eventBasedGateway"
+          },
+          {
+            "id": "Gateway_Await2",
+            "type": "eventBasedGateway"
+          },
+          {
+            "id": "Gateway_Await3",
+            "type": "eventBasedGateway"
+          },
+          {
+            "id": "Gateway_Await4",
+            "type": "eventBasedGateway"
+          },
+          {
+            "id": "Gateway_CommitMerge",
+            "type": "exclusiveGateway"
+          },
+          {
+            "id": "Timer_Stage1",
+            "type": "timerCatchEvent",
+            "name": "D+3 elapsed"
+          },
+          {
+            "id": "Timer_Stage2",
+            "type": "timerCatchEvent",
+            "name": "D+7 elapsed"
+          },
+          {
+            "id": "Timer_Stage3",
+            "type": "timerCatchEvent",
+            "name": "D+10 elapsed"
+          },
+          {
+            "id": "Timer_Deadline",
+            "type": "timerCatchEvent",
+            "name": "Call deadline reached"
+          },
+          {
+            "id": "Msg_Commit1",
+            "type": "messageCatchEvent",
+            "name": "LP commitment received"
+          },
+          {
+            "id": "Msg_Commit2",
+            "type": "messageCatchEvent",
+            "name": "LP commitment received"
+          },
+          {
+            "id": "Msg_Commit3",
+            "type": "messageCatchEvent",
+            "name": "LP commitment received"
+          },
+          {
+            "id": "Msg_Commit4",
+            "type": "messageCatchEvent",
+            "name": "LP commitment received"
+          }
+        ],
+        "edges": [
+          {
+            "id": "Flow_to_Await1",
+            "source": "Start_LP",
+            "target": "Gateway_Await1"
+          },
+          {
+            "id": "Flow_Await1_Msg",
+            "source": "Gateway_Await1",
+            "target": "Msg_Commit1"
+          },
+          {
+            "id": "Flow_Await1_Timer",
+            "source": "Gateway_Await1",
+            "target": "Timer_Stage1"
+          },
+          {
+            "id": "Flow_Timer1_FollowUp",
+            "source": "Timer_Stage1",
+            "target": "Task_FollowUp1"
+          },
+          {
+            "id": "Flow_to_Await2",
+            "source": "Task_FollowUp1",
+            "target": "Gateway_Await2"
+          },
+          {
+            "id": "Flow_Await2_Msg",
+            "source": "Gateway_Await2",
+            "target": "Msg_Commit2"
+          },
+          {
+            "id": "Flow_Await2_Timer",
+            "source": "Gateway_Await2",
+            "target": "Timer_Stage2"
+          },
+          {
+            "id": "Flow_Timer2_FollowUp",
+            "source": "Timer_Stage2",
+            "target": "Task_FollowUp2"
+          },
+          {
+            "id": "Flow_to_Await3",
+            "source": "Task_FollowUp2",
+            "target": "Gateway_Await3"
+          },
+          {
+            "id": "Flow_Await3_Msg",
+            "source": "Gateway_Await3",
+            "target": "Msg_Commit3"
+          },
+          {
+            "id": "Flow_Await3_Timer",
+            "source": "Gateway_Await3",
+            "target": "Timer_Stage3"
+          },
+          {
+            "id": "Flow_Timer3_FollowUp",
+            "source": "Timer_Stage3",
+            "target": "Task_FollowUp3"
+          },
+          {
+            "id": "Flow_to_Await4",
+            "source": "Task_FollowUp3",
+            "target": "Gateway_Await4"
+          },
+          {
+            "id": "Flow_Await4_Msg",
+            "source": "Gateway_Await4",
+            "target": "Msg_Commit4"
+          },
+          {
+            "id": "Flow_Await4_Timer",
+            "source": "Gateway_Await4",
+            "target": "Timer_Deadline"
+          },
+          {
+            "id": "Flow_Deadline_Default",
+            "source": "Timer_Deadline",
+            "target": "Task_RecordDefault"
+          },
+          {
+            "id": "Flow_Default_End",
+            "source": "Task_RecordDefault",
+            "target": "End_Defaulted"
+          },
+          {
+            "id": "Flow_Msg1_Merge",
+            "source": "Msg_Commit1",
+            "target": "Gateway_CommitMerge"
+          },
+          {
+            "id": "Flow_Msg2_Merge",
+            "source": "Msg_Commit2",
+            "target": "Gateway_CommitMerge"
+          },
+          {
+            "id": "Flow_Msg3_Merge",
+            "source": "Msg_Commit3",
+            "target": "Gateway_CommitMerge"
+          },
+          {
+            "id": "Flow_Msg4_Merge",
+            "source": "Msg_Commit4",
+            "target": "Gateway_CommitMerge"
+          },
+          {
+            "id": "Flow_Merge_Record",
+            "source": "Gateway_CommitMerge",
+            "target": "Task_RecordCommit"
+          },
+          {
+            "id": "Flow_Record_End",
+            "source": "Task_RecordCommit",
+            "target": "End_Committed"
+          }
+        ],
+        "bpmnXml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:zeebe=\"http://camunda.org/schema/zeebe/1.0\" xmlns:modeler=\"http://camunda.org/schema/modeler/1.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"Definitions_lp-response\" targetNamespace=\"http://bpmn.io/schema/bpmn\" exporter=\"gen_bpmn.py\" exporterVersion=\"1.0\" modeler:executionPlatform=\"Camunda Cloud\" modeler:executionPlatformVersion=\"8.10.0\">\n  <bpmn:process id=\"lp-response\" name=\"LP Response (per LP)\" isExecutable=\"true\">\n    <bpmn:startEvent id=\"Start_LP\" name=\"LP notified\">\n      <bpmn:outgoing>Flow_to_Await1</bpmn:outgoing>\n    </bpmn:startEvent>\n    <bpmn:eventBasedGateway id=\"Gateway_Await1\" name=\"\">\n      <bpmn:incoming>Flow_to_Await1</bpmn:incoming>\n      <bpmn:outgoing>Flow_Await1_Msg</bpmn:outgoing>\n      <bpmn:outgoing>Flow_Await1_Timer</bpmn:outgoing>\n    </bpmn:eventBasedGateway>\n    <bpmn:intermediateCatchEvent id=\"Msg_Commit1\" name=\"LP commitment received\">\n      <bpmn:incoming>Flow_Await1_Msg</bpmn:incoming>\n      <bpmn:outgoing>Flow_Msg1_Merge</bpmn:outgoing>\n      <bpmn:messageEventDefinition messageRef=\"Message_LPCommitment\"/>\n    </bpmn:intermediateCatchEvent>\n    <bpmn:intermediateCatchEvent id=\"Timer_Stage1\" name=\"D+3 elapsed\">\n      <bpmn:incoming>Flow_Await1_Timer</bpmn:incoming>\n      <bpmn:outgoing>Flow_Timer1_FollowUp</bpmn:outgoing>\n      <bpmn:timerEventDefinition>\n        <bpmn:timeDuration xsi:type=\"bpmn:tFormalExpression\">=waitStage1</bpmn:timeDuration>\n      </bpmn:timerEventDefinition>\n    </bpmn:intermediateCatchEvent>\n    <bpmn:serviceTask id=\"Task_FollowUp1\" name=\"Auto follow-up: Email reminder (D+3)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"autoFollowUp\" retries=\"3\"/>\n        <zeebe:taskHeaders>\n          <zeebe:header key=\"stage\" value=\"1\"/>\n        </zeebe:taskHeaders>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Timer1_FollowUp</bpmn:incoming>\n      <bpmn:outgoing>Flow_to_Await2</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:eventBasedGateway id=\"Gateway_Await2\" name=\"\">\n      <bpmn:incoming>Flow_to_Await2</bpmn:incoming>\n      <bpmn:outgoing>Flow_Await2_Msg</bpmn:outgoing>\n      <bpmn:outgoing>Flow_Await2_Timer</bpmn:outgoing>\n    </bpmn:eventBasedGateway>\n    <bpmn:intermediateCatchEvent id=\"Msg_Commit2\" name=\"LP commitment received\">\n      <bpmn:incoming>Flow_Await2_Msg</bpmn:incoming>\n      <bpmn:outgoing>Flow_Msg2_Merge</bpmn:outgoing>\n      <bpmn:messageEventDefinition messageRef=\"Message_LPCommitment\"/>\n    </bpmn:intermediateCatchEvent>\n    <bpmn:intermediateCatchEvent id=\"Timer_Stage2\" name=\"D+7 elapsed\">\n      <bpmn:incoming>Flow_Await2_Timer</bpmn:incoming>\n      <bpmn:outgoing>Flow_Timer2_FollowUp</bpmn:outgoing>\n      <bpmn:timerEventDefinition>\n        <bpmn:timeDuration xsi:type=\"bpmn:tFormalExpression\">=waitStage2</bpmn:timeDuration>\n      </bpmn:timerEventDefinition>\n    </bpmn:intermediateCatchEvent>\n    <bpmn:serviceTask id=\"Task_FollowUp2\" name=\"Auto follow-up: Phone call (D+7)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"autoFollowUp\" retries=\"3\"/>\n        <zeebe:taskHeaders>\n          <zeebe:header key=\"stage\" value=\"2\"/>\n        </zeebe:taskHeaders>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Timer2_FollowUp</bpmn:incoming>\n      <bpmn:outgoing>Flow_to_Await3</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:eventBasedGateway id=\"Gateway_Await3\" name=\"\">\n      <bpmn:incoming>Flow_to_Await3</bpmn:incoming>\n      <bpmn:outgoing>Flow_Await3_Msg</bpmn:outgoing>\n      <bpmn:outgoing>Flow_Await3_Timer</bpmn:outgoing>\n    </bpmn:eventBasedGateway>\n    <bpmn:intermediateCatchEvent id=\"Msg_Commit3\" name=\"LP commitment received\">\n      <bpmn:incoming>Flow_Await3_Msg</bpmn:incoming>\n      <bpmn:outgoing>Flow_Msg3_Merge</bpmn:outgoing>\n      <bpmn:messageEventDefinition messageRef=\"Message_LPCommitment\"/>\n    </bpmn:intermediateCatchEvent>\n    <bpmn:intermediateCatchEvent id=\"Timer_Stage3\" name=\"D+10 elapsed\">\n      <bpmn:incoming>Flow_Await3_Timer</bpmn:incoming>\n      <bpmn:outgoing>Flow_Timer3_FollowUp</bpmn:outgoing>\n      <bpmn:timerEventDefinition>\n        <bpmn:timeDuration xsi:type=\"bpmn:tFormalExpression\">=waitStage3</bpmn:timeDuration>\n      </bpmn:timerEventDefinition>\n    </bpmn:intermediateCatchEvent>\n    <bpmn:serviceTask id=\"Task_FollowUp3\" name=\"Auto follow-up: Legal notice (D+10)\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"autoFollowUp\" retries=\"3\"/>\n        <zeebe:taskHeaders>\n          <zeebe:header key=\"stage\" value=\"3\"/>\n        </zeebe:taskHeaders>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Timer3_FollowUp</bpmn:incoming>\n      <bpmn:outgoing>Flow_to_Await4</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:eventBasedGateway id=\"Gateway_Await4\" name=\"\">\n      <bpmn:incoming>Flow_to_Await4</bpmn:incoming>\n      <bpmn:outgoing>Flow_Await4_Msg</bpmn:outgoing>\n      <bpmn:outgoing>Flow_Await4_Timer</bpmn:outgoing>\n    </bpmn:eventBasedGateway>\n    <bpmn:intermediateCatchEvent id=\"Msg_Commit4\" name=\"LP commitment received\">\n      <bpmn:incoming>Flow_Await4_Msg</bpmn:incoming>\n      <bpmn:outgoing>Flow_Msg4_Merge</bpmn:outgoing>\n      <bpmn:messageEventDefinition messageRef=\"Message_LPCommitment\"/>\n    </bpmn:intermediateCatchEvent>\n    <bpmn:intermediateCatchEvent id=\"Timer_Deadline\" name=\"Call deadline reached\">\n      <bpmn:incoming>Flow_Await4_Timer</bpmn:incoming>\n      <bpmn:outgoing>Flow_Deadline_Default</bpmn:outgoing>\n      <bpmn:timerEventDefinition>\n        <bpmn:timeDuration xsi:type=\"bpmn:tFormalExpression\">=waitFinal</bpmn:timeDuration>\n      </bpmn:timerEventDefinition>\n    </bpmn:intermediateCatchEvent>\n    <bpmn:serviceTask id=\"Task_RecordDefault\" name=\"Record LP default\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"recordLPResponse\" retries=\"3\"/>\n        <zeebe:taskHeaders>\n          <zeebe:header key=\"status\" value=\"defaulted\"/>\n        </zeebe:taskHeaders>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Deadline_Default</bpmn:incoming>\n      <bpmn:outgoing>Flow_Default_End</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:endEvent id=\"End_Defaulted\" name=\"LP defaulted\">\n      <bpmn:incoming>Flow_Default_End</bpmn:incoming>\n    </bpmn:endEvent>\n    <bpmn:exclusiveGateway id=\"Gateway_CommitMerge\" name=\"\">\n      <bpmn:incoming>Flow_Msg1_Merge</bpmn:incoming>\n      <bpmn:incoming>Flow_Msg2_Merge</bpmn:incoming>\n      <bpmn:incoming>Flow_Msg3_Merge</bpmn:incoming>\n      <bpmn:incoming>Flow_Msg4_Merge</bpmn:incoming>\n      <bpmn:outgoing>Flow_Merge_Record</bpmn:outgoing>\n    </bpmn:exclusiveGateway>\n    <bpmn:serviceTask id=\"Task_RecordCommit\" name=\"Record LP commitment\">\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"recordLPResponse\" retries=\"3\"/>\n        <zeebe:taskHeaders>\n          <zeebe:header key=\"status\" value=\"committed\"/>\n        </zeebe:taskHeaders>\n      </bpmn:extensionElements>\n      <bpmn:incoming>Flow_Merge_Record</bpmn:incoming>\n      <bpmn:outgoing>Flow_Record_End</bpmn:outgoing>\n    </bpmn:serviceTask>\n    <bpmn:endEvent id=\"End_Committed\" name=\"LP committed\">\n      <bpmn:incoming>Flow_Record_End</bpmn:incoming>\n    </bpmn:endEvent>\n    <bpmn:sequenceFlow id=\"Flow_to_Await1\" sourceRef=\"Start_LP\" targetRef=\"Gateway_Await1\"/>\n    <bpmn:sequenceFlow id=\"Flow_Await1_Msg\" sourceRef=\"Gateway_Await1\" targetRef=\"Msg_Commit1\"/>\n    <bpmn:sequenceFlow id=\"Flow_Await1_Timer\" sourceRef=\"Gateway_Await1\" targetRef=\"Timer_Stage1\"/>\n    <bpmn:sequenceFlow id=\"Flow_Timer1_FollowUp\" sourceRef=\"Timer_Stage1\" targetRef=\"Task_FollowUp1\"/>\n    <bpmn:sequenceFlow id=\"Flow_to_Await2\" sourceRef=\"Task_FollowUp1\" targetRef=\"Gateway_Await2\"/>\n    <bpmn:sequenceFlow id=\"Flow_Await2_Msg\" sourceRef=\"Gateway_Await2\" targetRef=\"Msg_Commit2\"/>\n    <bpmn:sequenceFlow id=\"Flow_Await2_Timer\" sourceRef=\"Gateway_Await2\" targetRef=\"Timer_Stage2\"/>\n    <bpmn:sequenceFlow id=\"Flow_Timer2_FollowUp\" sourceRef=\"Timer_Stage2\" targetRef=\"Task_FollowUp2\"/>\n    <bpmn:sequenceFlow id=\"Flow_to_Await3\" sourceRef=\"Task_FollowUp2\" targetRef=\"Gateway_Await3\"/>\n    <bpmn:sequenceFlow id=\"Flow_Await3_Msg\" sourceRef=\"Gateway_Await3\" targetRef=\"Msg_Commit3\"/>\n    <bpmn:sequenceFlow id=\"Flow_Await3_Timer\" sourceRef=\"Gateway_Await3\" targetRef=\"Timer_Stage3\"/>\n    <bpmn:sequenceFlow id=\"Flow_Timer3_FollowUp\" sourceRef=\"Timer_Stage3\" targetRef=\"Task_FollowUp3\"/>\n    <bpmn:sequenceFlow id=\"Flow_to_Await4\" sourceRef=\"Task_FollowUp3\" targetRef=\"Gateway_Await4\"/>\n    <bpmn:sequenceFlow id=\"Flow_Await4_Msg\" sourceRef=\"Gateway_Await4\" targetRef=\"Msg_Commit4\"/>\n    <bpmn:sequenceFlow id=\"Flow_Await4_Timer\" sourceRef=\"Gateway_Await4\" targetRef=\"Timer_Deadline\"/>\n    <bpmn:sequenceFlow id=\"Flow_Deadline_Default\" sourceRef=\"Timer_Deadline\" targetRef=\"Task_RecordDefault\"/>\n    <bpmn:sequenceFlow id=\"Flow_Default_End\" sourceRef=\"Task_RecordDefault\" targetRef=\"End_Defaulted\"/>\n    <bpmn:sequenceFlow id=\"Flow_Msg1_Merge\" sourceRef=\"Msg_Commit1\" targetRef=\"Gateway_CommitMerge\"/>\n    <bpmn:sequenceFlow id=\"Flow_Msg2_Merge\" sourceRef=\"Msg_Commit2\" targetRef=\"Gateway_CommitMerge\"/>\n    <bpmn:sequenceFlow id=\"Flow_Msg3_Merge\" sourceRef=\"Msg_Commit3\" targetRef=\"Gateway_CommitMerge\"/>\n    <bpmn:sequenceFlow id=\"Flow_Msg4_Merge\" sourceRef=\"Msg_Commit4\" targetRef=\"Gateway_CommitMerge\"/>\n    <bpmn:sequenceFlow id=\"Flow_Merge_Record\" sourceRef=\"Gateway_CommitMerge\" targetRef=\"Task_RecordCommit\"/>\n    <bpmn:sequenceFlow id=\"Flow_Record_End\" sourceRef=\"Task_RecordCommit\" targetRef=\"End_Committed\"/>\n  </bpmn:process>\n  <bpmn:message id=\"Message_LPCommitment\" name=\"lpCommitment\">\n    <bpmn:extensionElements>\n      <zeebe:subscription correlationKey=\"=callId + &quot;:&quot; + lp.lpId\"/>\n    </bpmn:extensionElements>\n  </bpmn:message>\n  <bpmndi:BPMNDiagram id=\"Diagram_lp-response\">\n    <bpmndi:BPMNPlane id=\"Plane_lp-response\" bpmnElement=\"lp-response\">\n      <bpmndi:BPMNShape id=\"Start_LP_di\" bpmnElement=\"Start_LP\">\n        <dc:Bounds x=\"150\" y=\"282\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"130\" y=\"322\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_Await1_di\" bpmnElement=\"Gateway_Await1\">\n        <dc:Bounds x=\"230\" y=\"275\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"210\" y=\"329\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Msg_Commit1_di\" bpmnElement=\"Msg_Commit1\">\n        <dc:Bounds x=\"302\" y=\"132\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"282\" y=\"172\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Timer_Stage1_di\" bpmnElement=\"Timer_Stage1\">\n        <dc:Bounds x=\"302\" y=\"282\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"282\" y=\"322\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_FollowUp1_di\" bpmnElement=\"Task_FollowUp1\">\n        <dc:Bounds x=\"380\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_Await2_di\" bpmnElement=\"Gateway_Await2\">\n        <dc:Bounds x=\"560\" y=\"275\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"540\" y=\"329\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Msg_Commit2_di\" bpmnElement=\"Msg_Commit2\">\n        <dc:Bounds x=\"632\" y=\"132\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"612\" y=\"172\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Timer_Stage2_di\" bpmnElement=\"Timer_Stage2\">\n        <dc:Bounds x=\"632\" y=\"282\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"612\" y=\"322\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_FollowUp2_di\" bpmnElement=\"Task_FollowUp2\">\n        <dc:Bounds x=\"710\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_Await3_di\" bpmnElement=\"Gateway_Await3\">\n        <dc:Bounds x=\"890\" y=\"275\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"870\" y=\"329\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Msg_Commit3_di\" bpmnElement=\"Msg_Commit3\">\n        <dc:Bounds x=\"962\" y=\"132\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"942\" y=\"172\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Timer_Stage3_di\" bpmnElement=\"Timer_Stage3\">\n        <dc:Bounds x=\"962\" y=\"282\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"942\" y=\"322\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_FollowUp3_di\" bpmnElement=\"Task_FollowUp3\">\n        <dc:Bounds x=\"1040\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_Await4_di\" bpmnElement=\"Gateway_Await4\">\n        <dc:Bounds x=\"1220\" y=\"275\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1200\" y=\"329\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Msg_Commit4_di\" bpmnElement=\"Msg_Commit4\">\n        <dc:Bounds x=\"1292\" y=\"132\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1272\" y=\"172\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Timer_Deadline_di\" bpmnElement=\"Timer_Deadline\">\n        <dc:Bounds x=\"1292\" y=\"282\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1272\" y=\"322\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_RecordDefault_di\" bpmnElement=\"Task_RecordDefault\">\n        <dc:Bounds x=\"1370\" y=\"260\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"End_Defaulted_di\" bpmnElement=\"End_Defaulted\">\n        <dc:Bounds x=\"1510\" y=\"282\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1490\" y=\"322\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_CommitMerge_di\" bpmnElement=\"Gateway_CommitMerge\" isMarkerVisible=\"true\">\n        <dc:Bounds x=\"1360\" y=\"125\" width=\"50\" height=\"50\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1340\" y=\"179\" width=\"90\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_RecordCommit_di\" bpmnElement=\"Task_RecordCommit\">\n        <dc:Bounds x=\"1460\" y=\"110\" width=\"100\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"End_Committed_di\" bpmnElement=\"End_Committed\">\n        <dc:Bounds x=\"1600\" y=\"132\" width=\"36\" height=\"36\"/>\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"1580\" y=\"172\" width=\"76\" height=\"27\"/>\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNEdge id=\"Flow_to_Await1_di\" bpmnElement=\"Flow_to_Await1\">\n        <di:waypoint x=\"186\" y=\"300\"/>\n        <di:waypoint x=\"230\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Await1_Msg_di\" bpmnElement=\"Flow_Await1_Msg\">\n        <di:waypoint x=\"255\" y=\"275\"/>\n        <di:waypoint x=\"255\" y=\"150\"/>\n        <di:waypoint x=\"302\" y=\"150\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Await1_Timer_di\" bpmnElement=\"Flow_Await1_Timer\">\n        <di:waypoint x=\"280\" y=\"300\"/>\n        <di:waypoint x=\"302\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Timer1_FollowUp_di\" bpmnElement=\"Flow_Timer1_FollowUp\">\n        <di:waypoint x=\"338\" y=\"300\"/>\n        <di:waypoint x=\"380\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_to_Await2_di\" bpmnElement=\"Flow_to_Await2\">\n        <di:waypoint x=\"480\" y=\"300\"/>\n        <di:waypoint x=\"560\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Await2_Msg_di\" bpmnElement=\"Flow_Await2_Msg\">\n        <di:waypoint x=\"585\" y=\"275\"/>\n        <di:waypoint x=\"585\" y=\"150\"/>\n        <di:waypoint x=\"632\" y=\"150\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Await2_Timer_di\" bpmnElement=\"Flow_Await2_Timer\">\n        <di:waypoint x=\"610\" y=\"300\"/>\n        <di:waypoint x=\"632\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Timer2_FollowUp_di\" bpmnElement=\"Flow_Timer2_FollowUp\">\n        <di:waypoint x=\"668\" y=\"300\"/>\n        <di:waypoint x=\"710\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_to_Await3_di\" bpmnElement=\"Flow_to_Await3\">\n        <di:waypoint x=\"810\" y=\"300\"/>\n        <di:waypoint x=\"890\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Await3_Msg_di\" bpmnElement=\"Flow_Await3_Msg\">\n        <di:waypoint x=\"915\" y=\"275\"/>\n        <di:waypoint x=\"915\" y=\"150\"/>\n        <di:waypoint x=\"962\" y=\"150\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Await3_Timer_di\" bpmnElement=\"Flow_Await3_Timer\">\n        <di:waypoint x=\"940\" y=\"300\"/>\n        <di:waypoint x=\"962\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Timer3_FollowUp_di\" bpmnElement=\"Flow_Timer3_FollowUp\">\n        <di:waypoint x=\"998\" y=\"300\"/>\n        <di:waypoint x=\"1040\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_to_Await4_di\" bpmnElement=\"Flow_to_Await4\">\n        <di:waypoint x=\"1140\" y=\"300\"/>\n        <di:waypoint x=\"1220\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Await4_Msg_di\" bpmnElement=\"Flow_Await4_Msg\">\n        <di:waypoint x=\"1245\" y=\"275\"/>\n        <di:waypoint x=\"1245\" y=\"150\"/>\n        <di:waypoint x=\"1292\" y=\"150\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Await4_Timer_di\" bpmnElement=\"Flow_Await4_Timer\">\n        <di:waypoint x=\"1270\" y=\"300\"/>\n        <di:waypoint x=\"1292\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Deadline_Default_di\" bpmnElement=\"Flow_Deadline_Default\">\n        <di:waypoint x=\"1328\" y=\"300\"/>\n        <di:waypoint x=\"1370\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Default_End_di\" bpmnElement=\"Flow_Default_End\">\n        <di:waypoint x=\"1470\" y=\"300\"/>\n        <di:waypoint x=\"1510\" y=\"300\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Msg1_Merge_di\" bpmnElement=\"Flow_Msg1_Merge\">\n        <di:waypoint x=\"320\" y=\"132\"/>\n        <di:waypoint x=\"320\" y=\"70\"/>\n        <di:waypoint x=\"1385\" y=\"70\"/>\n        <di:waypoint x=\"1385\" y=\"125\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Msg2_Merge_di\" bpmnElement=\"Flow_Msg2_Merge\">\n        <di:waypoint x=\"650\" y=\"132\"/>\n        <di:waypoint x=\"650\" y=\"70\"/>\n        <di:waypoint x=\"1385\" y=\"70\"/>\n        <di:waypoint x=\"1385\" y=\"125\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Msg3_Merge_di\" bpmnElement=\"Flow_Msg3_Merge\">\n        <di:waypoint x=\"980\" y=\"132\"/>\n        <di:waypoint x=\"980\" y=\"70\"/>\n        <di:waypoint x=\"1385\" y=\"70\"/>\n        <di:waypoint x=\"1385\" y=\"125\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Msg4_Merge_di\" bpmnElement=\"Flow_Msg4_Merge\">\n        <di:waypoint x=\"1310\" y=\"132\"/>\n        <di:waypoint x=\"1310\" y=\"70\"/>\n        <di:waypoint x=\"1385\" y=\"70\"/>\n        <di:waypoint x=\"1385\" y=\"125\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Merge_Record_di\" bpmnElement=\"Flow_Merge_Record\">\n        <di:waypoint x=\"1410\" y=\"150\"/>\n        <di:waypoint x=\"1460\" y=\"150\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Record_End_di\" bpmnElement=\"Flow_Record_End\">\n        <di:waypoint x=\"1560\" y=\"150\"/>\n        <di:waypoint x=\"1600\" y=\"150\"/>\n      </bpmndi:BPMNEdge>\n    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n</bpmn:definitions>\n",
+        "reducibility": {
+          "isReducible": false,
+          "unmatchedSplitJoins": [
+            {
+              "nodeId": "Gateway_Await1",
+              "reason": "The branches converge at \"Gateway_CommitMerge\", a exclusiveGateway. This is not a matching eventBasedGateway join."
+            },
+            {
+              "nodeId": "Gateway_Await2",
+              "reason": "The branches converge at \"Gateway_CommitMerge\", a exclusiveGateway. This is not a matching eventBasedGateway join."
+            },
+            {
+              "nodeId": "Gateway_Await3",
+              "reason": "The branches converge at \"Gateway_CommitMerge\", a exclusiveGateway. This is not a matching eventBasedGateway join."
+            },
+            {
+              "nodeId": "Gateway_Await4",
+              "reason": "The branches converge at \"Gateway_CommitMerge\", a exclusiveGateway. This is not a matching eventBasedGateway join."
+            }
+          ]
+        },
+        "safety": {
+          "isSafe": true
+        }
+      },
+      "variables": {
+        "names": [
+          "amountUSD",
+          "bridgeResult",
+          "bridgeTriggered",
+          "callDeadline",
+          "callId",
+          "deadlineAt",
+          "deadlineDays",
+          "drawAmounts",
+          "followUps",
+          "fundId",
+          "gpDecisions",
+          "highRiskLPs",
+          "loopCounter",
+          "lp",
+          "lpList",
+          "lpResponse",
+          "lpResponses",
+          "responseStatus",
+          "secondsPerDay",
+          "settlementMode",
+          "targetAmountUSD",
+          "waitFinal",
+          "waitStage1",
+          "waitStage2",
+          "waitStage3"
+        ],
+        "inferredTypes": {
+          "amountUSD": "number",
+          "bridgeResult": "null",
+          "bridgeTriggered": "boolean",
+          "callDeadline": "string",
+          "callId": "string",
+          "deadlineAt": "string",
+          "deadlineDays": "number",
+          "drawAmounts": "object",
+          "followUps": "number",
+          "fundId": "string",
+          "gpDecisions": "array",
+          "highRiskLPs": "array",
+          "loopCounter": "number",
+          "lp": "object",
+          "lpList": "array",
+          "lpResponse": "object",
+          "lpResponses": "array",
+          "responseStatus": "string",
+          "secondsPerDay": "number",
+          "settlementMode": "string",
+          "targetAmountUSD": "number",
+          "waitFinal": "string",
+          "waitStage1": "string",
+          "waitStage2": "string",
+          "waitStage3": "string"
+        },
+        "payloadSizeP95Bytes": 191,
+        "payloadSizeMaxBytes": 970
+      },
+      "jobTypes": [
+        "autoFollowUp",
+        "recordLPResponse"
+      ],
+      "messages": [
+        {
+          "processDefinitionId": "lp-response",
+          "elementId": "Msg_Commit1",
+          "position": "intermediate-catch",
+          "messageName": "lpCommitment",
+          "correlationKey": "=callId + \":\" + lp.lpId",
+          "correlationClass": "computed"
+        },
+        {
+          "processDefinitionId": "lp-response",
+          "elementId": "Msg_Commit2",
+          "position": "intermediate-catch",
+          "messageName": "lpCommitment",
+          "correlationKey": "=callId + \":\" + lp.lpId",
+          "correlationClass": "computed"
+        },
+        {
+          "processDefinitionId": "lp-response",
+          "elementId": "Msg_Commit3",
+          "position": "intermediate-catch",
+          "messageName": "lpCommitment",
+          "correlationKey": "=callId + \":\" + lp.lpId",
+          "correlationClass": "computed"
+        },
+        {
+          "processDefinitionId": "lp-response",
+          "elementId": "Msg_Commit4",
+          "position": "intermediate-catch",
+          "messageName": "lpCommitment",
+          "correlationKey": "=callId + \":\" + lp.lpId",
+          "correlationClass": "computed"
+        }
+      ],
+      "migrationNotes": [
+        "MANUAL: none",
+        "ASSISTED: 4 item(s) — see elements[]",
+        "AUTO+FLAG: 1 item(s) — see elements[]"
+      ]
+    }
+  ],
+  "jobTypes": [
+    {
+      "type": "aggregateLiquidity",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Aggregate"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904
+    },
+    {
+      "type": "applyGPDecision",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_ApplyDecision"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904
+    },
+    {
+      "type": "autoFollowUp",
+      "referencedBy": [
+        {
+          "processDefinitionId": "lp-response",
+          "elementId": "Task_FollowUp1"
+        },
+        {
+          "processDefinitionId": "lp-response",
+          "elementId": "Task_FollowUp2"
+        },
+        {
+          "processDefinitionId": "lp-response",
+          "elementId": "Task_FollowUp3"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "taskHeaders": {
+        "stage": "1"
+      },
+      "observedThroughputPerHour": 0.047619047619047616
+    },
+    {
+      "type": "emitLiquidityReport",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Report"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904
+    },
+    {
+      "type": "escalateToGP",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Escalate"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904
+    },
+    {
+      "type": "finalizeResponses",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Finalize"
+        },
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_FinalizeDeadline"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": false,
+      "retries": 3,
+      "taskHeaders": {
+        "reason": "force-settlement"
+      }
+    },
+    {
+      "type": "issueCapitalCall",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Issue"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904,
+      "observedFailureRate": 0.5
+    },
+    {
+      "type": "markCallCancelled",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Cancel"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": false,
+      "retries": 3
+    },
+    {
+      "type": "notifyLPs",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Notify"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904
+    },
+    {
+      "type": "predictDefaultRisk",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Predict"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904
+    },
+    {
+      "type": "recordLPResponse",
+      "referencedBy": [
+        {
+          "processDefinitionId": "lp-response",
+          "elementId": "Task_RecordDefault"
+        },
+        {
+          "processDefinitionId": "lp-response",
+          "elementId": "Task_RecordCommit"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "taskHeaders": {
+        "status": "defaulted"
+      },
+      "observedThroughputPerHour": 0.11904761904761904
+    },
+    {
+      "type": "scoreLPPortfolio",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Portfolio"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904
+    },
+    {
+      "type": "settleAndReconcile",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Settle"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904
+    },
+    {
+      "type": "triggerBridge",
+      "referencedBy": [
+        {
+          "processDefinitionId": "capital-call",
+          "elementId": "Task_Bridge"
+        }
+      ],
+      "declaredInBpmn": true,
+      "observedAtRuntime": true,
+      "retries": 3,
+      "observedThroughputPerHour": 0.011904761904761904
+    }
+  ],
+  "timers": {
+    "timers": [
+      {
+        "processDefinitionId": "capital-call",
+        "elementId": "Boundary_Deadline",
+        "position": "boundary",
+        "cancelActivity": true,
+        "definitionType": "timeDuration",
+        "rawValue": "=callDeadline",
+        "isFeelExpression": true,
+        "nonInterruptingBoundary": false,
+        "unboundedCycle": false,
+        "cronNonZeroSeconds": false,
+        "durationOver30Days": false
+      },
+      {
+        "processDefinitionId": "lp-response",
+        "elementId": "Timer_Stage1",
+        "position": "intermediate",
+        "cancelActivity": false,
+        "definitionType": "timeDuration",
+        "rawValue": "=waitStage1",
+        "isFeelExpression": true,
+        "nonInterruptingBoundary": false,
+        "unboundedCycle": false,
+        "cronNonZeroSeconds": false,
+        "durationOver30Days": false
+      },
+      {
+        "processDefinitionId": "lp-response",
+        "elementId": "Timer_Stage2",
+        "position": "intermediate",
+        "cancelActivity": false,
+        "definitionType": "timeDuration",
+        "rawValue": "=waitStage2",
+        "isFeelExpression": true,
+        "nonInterruptingBoundary": false,
+        "unboundedCycle": false,
+        "cronNonZeroSeconds": false,
+        "durationOver30Days": false
+      },
+      {
+        "processDefinitionId": "lp-response",
+        "elementId": "Timer_Stage3",
+        "position": "intermediate",
+        "cancelActivity": false,
+        "definitionType": "timeDuration",
+        "rawValue": "=waitStage3",
+        "isFeelExpression": true,
+        "nonInterruptingBoundary": false,
+        "unboundedCycle": false,
+        "cronNonZeroSeconds": false,
+        "durationOver30Days": false
+      },
+      {
+        "processDefinitionId": "lp-response",
+        "elementId": "Timer_Deadline",
+        "position": "intermediate",
+        "cancelActivity": false,
+        "definitionType": "timeDuration",
+        "rawValue": "=waitFinal",
+        "isFeelExpression": true,
+        "nonInterruptingBoundary": false,
+        "unboundedCycle": false,
+        "cronNonZeroSeconds": false,
+        "durationOver30Days": false
+      }
+    ],
+    "nonInterruptingBoundaryCount": 0,
+    "unboundedCycleCount": 0,
+    "cronNonZeroSecondsCount": 0,
+    "durationOver30DaysCount": 0
+  },
+  "workItems": {
+    "items": [
+      {
+        "id": "redesign:lp-response:irreducible",
+        "type": "redesign",
+        "processDefinitionId": "lp-response",
+        "action": "Decompose this process into composable workflows, or emit it as a labeled state machine.",
+        "reason": "The control-flow graph is irreducible. Nested Go blocks cannot express it.",
+        "sizeUnits": 20,
+        "complexity": "High",
+        "sizeAccounting": "counted"
+      },
+      {
+        "id": "redesign:lp-response:msg_commit1",
+        "type": "redesign",
+        "processDefinitionId": "lp-response",
+        "elementId": "Msg_Commit1",
+        "elementName": "LP commitment received",
+        "action": "Translate with a design decision. The generator scaffolds this construct and flags it for completion.",
+        "reason": "A computed correlation key makes this construct ASSISTED.",
+        "classification": "ASSISTED",
+        "sizeUnits": 8,
+        "complexity": "Medium",
+        "sizeAccounting": "counted"
+      },
+      {
+        "id": "redesign:lp-response:msg_commit2",
+        "type": "redesign",
+        "processDefinitionId": "lp-response",
+        "elementId": "Msg_Commit2",
+        "elementName": "LP commitment received",
+        "action": "Translate with a design decision. The generator scaffolds this construct and flags it for completion.",
+        "reason": "A computed correlation key makes this construct ASSISTED.",
+        "classification": "ASSISTED",
+        "sizeUnits": 8,
+        "complexity": "Medium",
+        "sizeAccounting": "counted"
+      },
+      {
+        "id": "redesign:lp-response:msg_commit3",
+        "type": "redesign",
+        "processDefinitionId": "lp-response",
+        "elementId": "Msg_Commit3",
+        "elementName": "LP commitment received",
+        "action": "Translate with a design decision. The generator scaffolds this construct and flags it for completion.",
+        "reason": "A computed correlation key makes this construct ASSISTED.",
+        "classification": "ASSISTED",
+        "sizeUnits": 8,
+        "complexity": "Medium",
+        "sizeAccounting": "counted"
+      },
+      {
+        "id": "redesign:lp-response:msg_commit4",
+        "type": "redesign",
+        "processDefinitionId": "lp-response",
+        "elementId": "Msg_Commit4",
+        "elementName": "LP commitment received",
+        "action": "Translate with a design decision. The generator scaffolds this construct and flags it for completion.",
+        "reason": "A computed correlation key makes this construct ASSISTED.",
+        "classification": "ASSISTED",
+        "sizeUnits": 8,
+        "complexity": "Medium",
+        "sizeAccounting": "counted"
+      },
+      {
+        "id": "data-remediation:capital-call:1",
+        "type": "data-remediation",
+        "processDefinitionId": "capital-call",
+        "action": "Verify and correct the variable handling before you port this process.",
+        "reason": "Call activity \"Call_LPResponses\" → \"lp-response\": the approximate true input set is waitFinal, waitStage1, waitStage2, waitStage3. Before you port, cross-check it against the ioMapping of this call site.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "not-sized"
+      },
+      {
+        "id": "human-task-handling:capital-call:gp-approval-form",
+        "type": "human-task-handling",
+        "processDefinitionId": "capital-call",
+        "elementName": "gp-approval-form",
+        "action": "Implement the workflow-side signal and update handlers for this human step. Bind the form to them.",
+        "reason": "Temporal has no user task or form runtime. You must model the interaction explicitly.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere",
+        "blockedBy": "User task service (Tasklist replacement)"
+      },
+      {
+        "id": "workflow-translation:capital-call",
+        "type": "workflow-translation",
+        "processDefinitionId": "capital-call",
+        "action": "Generate and review the Temporal workflow for this process.",
+        "reason": "Grade D process with 34 elements. This is the mechanically translatable remainder.",
+        "sizeUnits": 60,
+        "complexity": "High",
+        "sizeAccounting": "counted"
+      },
+      {
+        "id": "workflow-translation:lp-response",
+        "type": "workflow-translation",
+        "processDefinitionId": "lp-response",
+        "action": "Generate and review the Temporal workflow for this process.",
+        "reason": "Grade D process with 21 elements. This is the mechanically translatable remainder.",
+        "sizeUnits": 24,
+        "complexity": "High",
+        "sizeAccounting": "counted"
+      },
+      {
+        "id": "activity-implementation:aggregateliquidity",
+        "type": "activity-implementation",
+        "elementName": "aggregateLiquidity",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:applygpdecision",
+        "type": "activity-implementation",
+        "elementName": "applyGPDecision",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:autofollowup",
+        "type": "activity-implementation",
+        "elementName": "autoFollowUp",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:emitliquidityreport",
+        "type": "activity-implementation",
+        "elementName": "emitLiquidityReport",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:escalatetogp",
+        "type": "activity-implementation",
+        "elementName": "escalateToGP",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:finalizeresponses",
+        "type": "activity-implementation",
+        "elementName": "finalizeResponses",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:issuecapitalcall",
+        "type": "activity-implementation",
+        "elementName": "issueCapitalCall",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:markcallcancelled",
+        "type": "activity-implementation",
+        "elementName": "markCallCancelled",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:notifylps",
+        "type": "activity-implementation",
+        "elementName": "notifyLPs",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:predictdefaultrisk",
+        "type": "activity-implementation",
+        "elementName": "predictDefaultRisk",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:recordlpresponse",
+        "type": "activity-implementation",
+        "elementName": "recordLPResponse",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:scorelpportfolio",
+        "type": "activity-implementation",
+        "elementName": "scoreLPPortfolio",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:settleandreconcile",
+        "type": "activity-implementation",
+        "elementName": "settleAndReconcile",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "activity-implementation:triggerbridge",
+        "type": "activity-implementation",
+        "elementName": "triggerBridge",
+        "action": "Implement the Temporal Activity for this job type. Set its retry policy and timeouts.",
+        "reason": "The job worker becomes a Temporal Activity. A RetryPolicy expresses the retries. The side-effect class is not yet annotated. Confirm whether a retry of this job is safe.",
+        "sizeUnits": 0,
+        "complexity": "Medium",
+        "sizeAccounting": "included-elsewhere"
+      },
+      {
+        "id": "platform-dependency:user-task-service-tasklist-replacement",
+        "type": "platform-dependency",
+        "elementName": "User task service (Tasklist replacement)",
+        "action": "Customer-built platform component. It has a separate scope and size, and the sizes above do not include it.",
+        "reason": "1 user task(s) across 1 form(s) depend on a task service that Temporal does not provide.",
+        "sizeUnits": 0,
+        "complexity": "High",
+        "sizeAccounting": "out-of-scope"
+      }
+    ],
+    "totalSizeUnits": 136,
+    "countByType": {
+      "activity-implementation": 14,
+      "data-remediation": 1,
+      "human-task-handling": 1,
+      "platform-dependency": 1,
+      "redesign": 5,
+      "workflow-translation": 2
+    },
+    "countByTypeComplexity": {
+      "activity-implementation": {
+        "Medium": 14
+      },
+      "data-remediation": {
+        "Medium": 1
+      },
+      "human-task-handling": {
+        "Medium": 1
+      },
+      "platform-dependency": {
+        "High": 1
+      },
+      "redesign": {
+        "High": 1,
+        "Medium": 4
+      },
+      "workflow-translation": {
+        "High": 2
+      }
+    }
+  }
+}

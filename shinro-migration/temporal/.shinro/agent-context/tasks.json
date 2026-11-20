@@ -1,0 +1,236 @@
+{
+  "schemaVersion": "1.0.0",
+  "tasks": [
+    {
+      "id": "setup",
+      "title": "Create the Temporal Java project skeleton (pom.xml, package layout, worker main)",
+      "status": "done",
+      "children": [],
+      "notes": [
+        "pom, package layout and Worker main written. Build is green."
+      ]
+    },
+    {
+      "id": "process:capital-call",
+      "title": "Migrate process `capital-call`",
+      "status": "done",
+      "children": [
+        {
+          "id": "capital-call:activity:aggregateLiquidity",
+          "title": "Migrate worker `aggregateLiquidity` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:applyGPDecision",
+          "title": "Migrate worker `applyGPDecision` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:emitLiquidityReport",
+          "title": "Migrate worker `emitLiquidityReport` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [
+            "The report text names Temporal."
+          ],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:escalateToGP",
+          "title": "Migrate worker `escalateToGP` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:finalizeResponses",
+          "title": "Migrate worker `finalizeResponses` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:issueCapitalCall",
+          "title": "Migrate worker `issueCapitalCall` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [
+            "No idempotency key in the md. Upsert on callId. A human must confirm the DB dependency."
+          ],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:markCallCancelled",
+          "title": "Migrate worker `markCallCancelled` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:notifyLPs",
+          "title": "Migrate worker `notifyLPs` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:predictDefaultRisk",
+          "title": "Migrate worker `predictDefaultRisk` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:scoreLPPortfolio",
+          "title": "Migrate worker `scoreLPPortfolio` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:settleAndReconcile",
+          "title": "Migrate worker `settleAndReconcile` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [
+            "A human must confirm that the ledger rebuild is safe for retries."
+          ],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:activity:triggerBridge",
+          "title": "Migrate worker `triggerBridge` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:workflow",
+          "title": "Write the workflow for process `capital-call` (orchestration, signals, timers, error boundaries)",
+          "status": "done",
+          "children": [],
+          "notes": [
+            "The GP user task is the gpDecision signal. The Camunda process instance key is the workflow id."
+          ],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:wire",
+          "title": "Register workflow + activities in the worker (TemporalWorker main)",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:test",
+          "title": "Write conformance tests (workflow + activities) for process `capital-call` — testsuite cases from the BPMN flow",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "capital-call:build",
+          "title": "Run `mvn -q -B test` and fix every failure",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        }
+      ],
+      "notes": [
+        "The DB, SES, ML scorer and credit facility are external. Tests mock them."
+      ],
+      "wave": 3
+    },
+    {
+      "id": "process:lp-response",
+      "title": "Migrate process `lp-response`",
+      "status": "done",
+      "children": [
+        {
+          "id": "lp-response:activity:autoFollowUp",
+          "title": "Migrate worker `autoFollowUp` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "lp-response:activity:recordLPResponse",
+          "title": "Migrate worker `recordLPResponse` → Temporal activity",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "lp-response:workflow",
+          "title": "Write the workflow for process `lp-response` (orchestration, signals, timers, error boundaries)",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "lp-response:wire",
+          "title": "Register workflow + activities in the worker (TemporalWorker main)",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "lp-response:test",
+          "title": "Write conformance tests (workflow + activities) for process `lp-response` — testsuite cases from the BPMN flow",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        },
+        {
+          "id": "lp-response:build",
+          "title": "Run `mvn -q -B test` and fix every failure",
+          "status": "done",
+          "children": [],
+          "notes": [],
+          "wave": 3
+        }
+      ],
+      "notes": [],
+      "wave": 3
+    },
+    {
+      "id": "final:verify",
+      "title": "Final `mvn -q -B -DskipTests compile && mvn -q -B test` and migration-manifest.json",
+      "status": "done",
+      "children": [],
+      "notes": [
+        "mvn test is green."
+      ]
+    },
+    {
+      "id": "final:mapping-manifest",
+      "title": "Emit codegen-mapping-manifest.json in the project root — one row per worker/element/decision/workflow → its Java symbol, plus decisions & gaps — so the validator can check coverage and fidelity",
+      "status": "done",
+      "children": [],
+      "notes": [
+        "The manifest is in the project root."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "source": {
+    "mode": "review-only",
+    "targetLanguage": "Java",
+    "llm": {
+      "used": true
+    }
+  },
+  "summary": {
+    "verdict": "pass",
+    "findings": 11,
+    "reviewFindings": 11,
+    "errors": 0,
+    "warnings": 0,
+    "infos": 0,
+    "coverageGaps": 0
+  },
+  "findings": [],
+  "runtimeValidation": {
+    "attempted": true,
+    "buildOk": true,
+    "testsOk": true,
+    "mode": "real-local",
+    "workflows": [
+      {
+        "processId": "capital-call",
+        "status": "completed_after_drive",
+        "ranWithoutRecordedInput": false,
+        "drivenMessages": 2,
+        "undeclaredHandlers": 0,
+        "terminalHandlers": 2
+      },
+      {
+        "processId": "lp-response",
+        "status": "completed_after_drive",
+        "ranWithoutRecordedInput": false,
+        "drivenMessages": 1,
+        "undeclaredHandlers": 0,
+        "terminalHandlers": 0
+      }
+    ]
+  },
+  "reviewFindings": [
+    {
+      "severity": "medium",
+      "category": "activity-idempotency",
+      "summary": "triggerBridge draws on the credit facility, and the DB update that follows can fail. A retry then repeats the drawdown, and only a facility-side dedupe on callId prevents a double draw.",
+      "suggestion": "Confirm that Support.postJSON sends callId as an idempotency header and that the facility honors it. If it does not, query the facility for an existing drawdown with this callId before you post.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java",
+      "line": 334,
+      "confidence": 0.45
+    },
+    {
+      "severity": "medium",
+      "category": "activity-idempotency",
+      "summary": "notifyLPs sends one email per LP in a loop. If a later send or the DB update fails, the retry sends all emails again. The code relies on SES to dedupe on the key, but SES has no native idempotency key.",
+      "suggestion": "Record each sent notice in a table keyed on callId and lpId. Skip LPs that have a record. Send one email per activity, or use a dedupe store.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java",
+      "line": 154,
+      "confidence": 0.5
+    },
+    {
+      "severity": "medium",
+      "category": "worker-local-state",
+      "summary": "emitLiquidityReport writes the JSON and PDF files to the local disk of the worker. On a multi-worker queue, a retry can run on another host. The files are then split across hosts and are lost if a pod is replaced.",
+      "suggestion": "Write the report to shared or object storage, such as S3 or a shared volume. Store that reference in the DB and in the result.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java",
+      "line": 501,
+      "confidence": 0.55
+    },
+    {
+      "severity": "low",
+      "category": "activity-idempotency",
+      "summary": "On a retry, issueCapitalCall computes a new deadline. The ON CONFLICT clause does not update deadline_date. The returned deadlineAt can then differ from the stored deadline.",
+      "suggestion": "Read the stored deadline_date on conflict and return it. Or compute the deadline in the workflow and pass it in.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java",
+      "line": 103,
+      "confidence": 0.35
+    },
+    {
+      "severity": "low",
+      "category": "error-handling",
+      "summary": "If the sum of LP commitments is zero, the draw split divides by zero. The result is NaN or Infinity, which goes into the DB and the result. The input check does not catch this.",
+      "suggestion": "Throw a non-retryable failure when total is not greater than zero.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java",
+      "line": 90,
+      "confidence": 0.4
+    },
+    {
+      "severity": "low",
+      "category": "resource-management",
+      "summary": "Each Db call opens a new JDBC connection with DriverManager and has no pool. Under load, activity concurrency can exhaust Postgres connections.",
+      "suggestion": "Use a pooled DataSource such as HikariCP. Size it to the worker activity concurrency.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/Db.java",
+      "line": 62,
+      "confidence": 0.4
+    },
+    {
+      "severity": "medium",
+      "category": "activity-idempotency",
+      "summary": "The audit insert is a plain INSERT with no unique key, so each activity retry adds a duplicate call_events row.",
+      "suggestion": "Add a deterministic event key, such as call_id, step and lp_id, and use INSERT ... ON CONFLICT DO NOTHING.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/Support.java",
+      "line": 69,
+      "confidence": 0.7
+    },
+    {
+      "severity": "high",
+      "category": "error-handling",
+      "summary": "setCallStatus catches the SQLException and only logs it. The activity then reports success while the capital call status is not updated, and Temporal does not retry.",
+      "suggestion": "Let the SQLException propagate as an activity failure so the retry policy applies. Remove the catch block.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/Support.java",
+      "line": 79,
+      "confidence": 0
+    },
+    {
+      "severity": "high",
+      "category": "error-handling",
+      "summary": "email swallows send failures (IOException and InterruptedException). The activity succeeds when no LP notification was sent, and Temporal does not retry.",
+      "suggestion": "Throw the failure from email so Temporal retries the activity. Keep the Idempotency-Key header so the retry does not send a duplicate.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/Support.java",
+      "line": 119,
+      "confidence": 0
+    },
+    {
+      "severity": "medium",
+      "category": "activity-idempotency",
+      "summary": "Retry safety of the SES send and of other POST calls depends only on the downstream service honoring the Idempotency-Key header. The mock SES is not shown to dedupe.",
+      "suggestion": "Confirm that SES and the credit service dedupe on Idempotency-Key. Otherwise record a sent marker in the database before or after the send.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/Support.java",
+      "line": 118,
+      "confidence": 0
+    },
+    {
+      "severity": "low",
+      "category": "retry-policy",
+      "summary": "postJSON throws the same IOException for every non-2xx answer. A permanent 4xx error is retried like a transient 5xx error.",
+      "suggestion": "Throw a non-retryable ApplicationFailure for 4xx answers except 408 and 429. Keep 5xx answers retryable.",
+      "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/Support.java",
+      "line": 103,
+      "confidence": 0
+    }
+  ],
+  "limitations": []
+}

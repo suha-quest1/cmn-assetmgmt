@@ -1,0 +1,198 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "codegen-mapping-manifest",
+  "source": { "module": "com.shinro.migration.cmnassetmgmt", "generatedAt": "2025-01-01T00:00:00Z", "generatorVersion": "shinro-agent" },
+  "target": { "language": "java", "modulePath": "com.shinro.migration.cmnassetmgmt", "projectRoot": "." },
+  "mappings": [
+    {
+      "source": { "kind": "bpmnElement", "elementId": "capital-call", "processId": "capital-call" },
+      "target": {
+        "construct": "workflow", "family": "workflow",
+        "symbol": "com.shinro.migration.cmnassetmgmt.workflows.CapitalCallWorkflowImpl#run",
+        "file": "src/main/java/com/shinro/migration/cmnassetmgmt/workflows/CapitalCallWorkflowImpl.java",
+        "startLine": 50,
+        "sampleInput": { "callId": "CC-1", "fundId": "F-1", "targetAmountUSD": 1000.0, "lpList": [ { "lpId": "LP-1", "commitmentUSD": 500.0, "email": "a@example.com", "drawAmountUSD": 0.0 }, { "lpId": "LP-2", "commitmentUSD": 500.0, "email": "b@example.com", "drawAmountUSD": 0.0 } ], "deadlineDays": 10, "secondsPerDay": 1 }
+      },
+      "decisions": { "sideEffectClass": "non-idempotent", "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "bpmnElement", "elementId": "lp-response", "processId": "lp-response" },
+      "target": {
+        "construct": "workflow", "family": "workflow",
+        "symbol": "com.shinro.migration.cmnassetmgmt.workflows.LpResponseWorkflowImpl#run",
+        "file": "src/main/java/com/shinro/migration/cmnassetmgmt/workflows/LpResponseWorkflowImpl.java",
+        "startLine": 26,
+        "sampleInput": { "callId": "CC-1", "lp": { "lpId": "LP-1", "commitmentUSD": 500.0, "email": "a@example.com", "drawAmountUSD": 500.0 }, "waitStage1": "PT1S", "waitStage2": "PT1S", "waitStage3": "PT1S", "waitFinal": "PT1S" }
+      },
+      "decisions": { "sideEffectClass": "non-idempotent", "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "bpmnElement", "elementId": "Message_LPCommitment", "processId": "capital-call" },
+      "target": {
+        "construct": "signalHandler", "family": "signalHandler",
+        "symbol": "com.shinro.migration.cmnassetmgmt.workflows.CapitalCallWorkflowImpl#lpCommitment",
+        "file": "src/main/java/com/shinro/migration/cmnassetmgmt/workflows/CapitalCallWorkflowImpl.java",
+        "startLine": 180,
+        "sampleInput": { "lpId": "LP-1", "responseStatus": "committed", "amountUSD": 500.0 },
+        "messageName": "lpCommitment",
+        "driveOrder": 1
+      },
+      "decisions": { "sideEffectClass": "non-idempotent", "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "humanTask", "elementId": "UserTask_GPApproval", "processId": "capital-call", "classificationKey": "userTask" },
+      "target": {
+        "construct": "signalHandler", "family": "signalHandler",
+        "symbol": "com.shinro.migration.cmnassetmgmt.workflows.CapitalCallWorkflowImpl#gpDecision",
+        "file": "src/main/java/com/shinro/migration/cmnassetmgmt/workflows/CapitalCallWorkflowImpl.java",
+        "startLine": 192,
+        "sampleInput": { "lpId": "LP-1", "action": "waive", "gpName": "GP Admin", "comment": "ok" },
+        "messageName": "gpDecision",
+        "driveOrder": 2
+      },
+      "decisions": { "sideEffectClass": "non-idempotent", "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "bpmnElement", "elementId": "Message_ForceSettlement", "processId": "capital-call" },
+      "target": {
+        "construct": "signalHandler", "family": "signalHandler",
+        "symbol": "com.shinro.migration.cmnassetmgmt.workflows.CapitalCallWorkflowImpl#forceSettlement",
+        "file": "src/main/java/com/shinro/migration/cmnassetmgmt/workflows/CapitalCallWorkflowImpl.java",
+        "startLine": 199,
+        "messageName": "forceSettlement",
+        "drive": false
+      },
+      "decisions": { "sideEffectClass": "non-idempotent", "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "bpmnElement", "elementId": "Message_CancelCall", "processId": "capital-call" },
+      "target": {
+        "construct": "signalHandler", "family": "signalHandler",
+        "symbol": "com.shinro.migration.cmnassetmgmt.workflows.CapitalCallWorkflowImpl#cancelCall",
+        "file": "src/main/java/com/shinro/migration/cmnassetmgmt/workflows/CapitalCallWorkflowImpl.java",
+        "startLine": 204,
+        "messageName": "cancelCall",
+        "drive": false
+      },
+      "decisions": { "sideEffectClass": "non-idempotent", "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "bpmnElement", "elementId": "Message_LPCommitment", "processId": "lp-response" },
+      "target": {
+        "construct": "signalHandler", "family": "signalHandler",
+        "symbol": "com.shinro.migration.cmnassetmgmt.workflows.LpResponseWorkflowImpl#lpCommitment",
+        "file": "src/main/java/com/shinro/migration/cmnassetmgmt/workflows/LpResponseWorkflowImpl.java",
+        "startLine": 60,
+        "sampleInput": { "lpId": "LP-1", "responseStatus": "committed", "amountUSD": 500.0 },
+        "messageName": "lpCommitment",
+        "driveOrder": 1
+      },
+      "decisions": { "sideEffectClass": "non-idempotent", "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#issueCapitalCall", "jobType": "issueCapitalCall", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#issueCapitalCall", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 71 },
+      "decisions": { "sideEffectClass": "non-idempotent", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#notifyLPs", "jobType": "notifyLPs", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#notifyLPs", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 150 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId:lpId", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#finalizeResponses", "jobType": "finalizeResponses", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#finalizeResponses", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 174 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId:finalizeResponses", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#aggregateLiquidity", "jobType": "aggregateLiquidity", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#aggregateLiquidity", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 211 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#predictDefaultRisk", "jobType": "predictDefaultRisk", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#predictDefaultRisk", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 249 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#scoreLPPortfolio", "jobType": "scoreLPPortfolio", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#scoreLPPortfolio", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 290 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#triggerBridge", "jobType": "triggerBridge", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#triggerBridge", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 330 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#escalateToGP", "jobType": "escalateToGP", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#escalateToGP", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 358 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId:lpId", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#applyGPDecision", "jobType": "applyGPDecision", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#applyGPDecision", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 379 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId:lpId", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#settleAndReconcile", "jobType": "settleAndReconcile", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#settleAndReconcile", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 417 },
+      "decisions": { "sideEffectClass": "non-idempotent", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#emitLiquidityReport", "jobType": "emitLiquidityReport", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#emitLiquidityReport", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 455 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#markCallCancelled", "jobType": "markCallCancelled", "processId": "capital-call", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.CapitalCallActivitiesImpl#markCallCancelled", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/CapitalCallActivitiesImpl.java", "startLine": 579 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId:lpId", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#autoFollowUp", "jobType": "autoFollowUp", "processId": "lp-response", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.LpResponseActivitiesImpl#autoFollowUp", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/LpResponseActivitiesImpl.java", "startLine": 24 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId:lpId:stage", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    },
+    {
+      "source": { "kind": "worker", "workerId": "worker:cmn-assetmgmt:com.vishworks.assetmgmt.handlers.Handlers#recordLPResponse", "jobType": "recordLPResponse", "processId": "lp-response", "classificationKey": "serviceTask" },
+      "target": { "construct": "activity", "family": "activity", "symbol": "com.shinro.migration.cmnassetmgmt.activities.LpResponseActivitiesImpl#recordLPResponse", "file": "src/main/java/com/shinro/migration/cmnassetmgmt/activities/LpResponseActivitiesImpl.java", "startLine": 45 },
+      "decisions": { "sideEffectClass": "non-idempotent", "idempotencyKey": "callId:lpId:followUps", "retryPolicy": {"maximumAttempts": 3}, "coverageClass": "ASSISTED", "reviewRequired": true },
+      "status": "generated"
+    }
+  ],
+  "gaps": [
+    {
+      "source": { "kind": "worker", "jobType": "issueCapitalCall", "processId": "capital-call" },
+      "reason": "The worker md names no idempotency key. The activity uses upserts on callId, but the md did not confirm this.",
+      "recommendation": "A human must confirm that the upsert on callId is enough and that the HikariDataSource dependency is correct.",
+      "severity": "warn"
+    },
+    {
+      "source": { "kind": "worker", "jobType": "settleAndReconcile", "processId": "capital-call" },
+      "reason": "The worker md names no idempotency key. The activity rebuilds the ledger in one transaction.",
+      "recommendation": "A human must confirm the ledger rebuild is safe for retries.",
+      "severity": "warn"
+    }
+  ]
+}
