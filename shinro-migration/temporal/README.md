@@ -56,7 +56,7 @@ Every LP commits in full. No bridge, no GP escalation.
 ```sh
 docker compose exec temporal-admin-tools temporal workflow start \
   --address temporal:7233 --task-queue capital-call --type capital-call --workflow-id CC-SIM-HAPPY \
-  --input '{"callId":"CC-SIM-HAPPY","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":1,
+  --input '{"callId":"CC-SIM-HAPPY","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":5,
     "lpList":[{"lpId":"LP-01","commitmentUSD":600000,"email":"lp01@example.com"},
               {"lpId":"LP-02","commitmentUSD":400000,"email":"lp02@example.com"}]}'
 
@@ -78,7 +78,7 @@ does not trigger the bridge (the threshold is strictly greater than 10%).
 ```sh
 docker compose exec temporal-admin-tools temporal workflow start \
   --address temporal:7233 --task-queue capital-call --type capital-call --workflow-id CC-SIM-DEFER \
-  --input '{"callId":"CC-SIM-DEFER","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":1,
+  --input '{"callId":"CC-SIM-DEFER","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":5,
     "lpList":[{"lpId":"LP-D1","commitmentUSD":900000,"email":"lpd1@example.com"},
               {"lpId":"LP-D2","commitmentUSD":100000,"email":"lpd2@example.com"}]}'
 
@@ -100,7 +100,7 @@ workflow waits for the `gpDecision` signal before settling.
 ```sh
 docker compose exec temporal-admin-tools temporal workflow start \
   --address temporal:7233 --task-queue capital-call --type capital-call --workflow-id CC-SIM-GPGATE \
-  --input '{"callId":"CC-SIM-GPGATE","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":1,
+  --input '{"callId":"CC-SIM-GPGATE","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":5,
     "lpList":[{"lpId":"LP-08","commitmentUSD":500000,"email":"lp08@example.com"},
               {"lpId":"LP-01","commitmentUSD":500000,"email":"lp01@example.com"}]}'
 
@@ -127,7 +127,7 @@ call completed with
 ```sh
 docker compose exec temporal-admin-tools temporal workflow start \
   --address temporal:7233 --task-queue capital-call --type capital-call --workflow-id CC-SIM-CANCEL \
-  --input '{"callId":"CC-SIM-CANCEL","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":1,
+  --input '{"callId":"CC-SIM-CANCEL","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":5,
     "lpList":[{"lpId":"LP-C1","commitmentUSD":1000000,"email":"lpc1@example.com"}]}'
 
 # within ~2s of starting, before any LP responds:
@@ -146,11 +146,11 @@ defaulted; the 100% gap triggers the bridge.
 ```sh
 docker compose exec temporal-admin-tools temporal workflow start \
   --address temporal:7233 --task-queue capital-call --type capital-call --workflow-id CC-SIM-NORESPONSE \
-  --input '{"callId":"CC-SIM-NORESPONSE","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":1,
+  --input '{"callId":"CC-SIM-NORESPONSE","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":2,
     "lpList":[{"lpId":"LP-1","commitmentUSD":600000,"email":"lp1@example.com"},
               {"lpId":"LP-2","commitmentUSD":400000,"email":"lp2@example.com"}]}'
 
-# send nothing; wait ~12s, then:
+# send nothing; wait ~24s, then:
 docker compose exec temporal-admin-tools temporal workflow describe --address temporal:7233 --workflow-id CC-SIM-NORESPONSE
 ```
 
