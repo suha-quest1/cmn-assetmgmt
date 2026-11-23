@@ -5,10 +5,11 @@ external dependency they need: a Temporal server + Web UI, the business
 Postgres database, and the SES, credit-facility and ML-scorer mocks.
 Workflows are started and signalled with the `temporal` CLI.
 
-Every scenario below has been run against this stack; the "Result" lines are
-real output. All scenarios use `secondsPerDay: 1`, which compresses the
-multi-day timers (follow-ups at D+3/D+7/D+10, a 10-day response window) down
-to seconds, so each one finishes in under a minute.
+Every scenario below has been run against this stack; the "Result" lines show
+the outcome. `secondsPerDay` compresses the multi-day timers (follow-ups at
+D+3/D+7/D+10, a 10-day response window) down to seconds: Scenarios 1–4 use
+`secondsPerDay: 5` (one business day = 5 seconds, so the first reminder fires
+15 seconds after start), and Scenario 5 uses `secondsPerDay: 2`.
 
 ## Start the stack
 
@@ -60,14 +61,14 @@ docker compose exec temporal-admin-tools temporal workflow start \
     "lpList":[{"lpId":"LP-01","commitmentUSD":600000,"email":"lp01@example.com"},
               {"lpId":"LP-02","commitmentUSD":400000,"email":"lp02@example.com"}]}'
 
-# within ~2s of starting:
+# within ~10s of starting (before the first reminder at 15s):
 docker compose exec temporal-admin-tools temporal workflow signal --address temporal:7233 --workflow-id CC-SIM-HAPPY --name lpCommitment --input '{"lpId":"LP-01"}'
 docker compose exec temporal-admin-tools temporal workflow signal --address temporal:7233 --workflow-id CC-SIM-HAPPY --name lpCommitment --input '{"lpId":"LP-02"}'
 
 docker compose exec temporal-admin-tools temporal workflow describe --address temporal:7233 --workflow-id CC-SIM-HAPPY
 ```
 
-**Result:** completed in ~1.5s. Both LPs `committed`, `gapPercent: 0`,
+**Result:** completes about a second after the last commitment. Both LPs `committed`, `gapPercent: 0`,
 `bridgeTriggered: false`, `totalCommitted: 1000000`, `wiresSettled: 2`.
 
 ## Scenario 2 — Deferred commitment
@@ -82,14 +83,14 @@ docker compose exec temporal-admin-tools temporal workflow start \
     "lpList":[{"lpId":"LP-D1","commitmentUSD":900000,"email":"lpd1@example.com"},
               {"lpId":"LP-D2","commitmentUSD":100000,"email":"lpd2@example.com"}]}'
 
-# within ~2s of starting:
+# within ~10s of starting (before the first reminder at 15s):
 docker compose exec temporal-admin-tools temporal workflow signal --address temporal:7233 --workflow-id CC-SIM-DEFER --name lpCommitment --input '{"lpId":"LP-D1"}'
 docker compose exec temporal-admin-tools temporal workflow signal --address temporal:7233 --workflow-id CC-SIM-DEFER --name lpCommitment --input '{"lpId":"LP-D2","responseStatus":"deferred"}'
 
 docker compose exec temporal-admin-tools temporal workflow describe --address temporal:7233 --workflow-id CC-SIM-DEFER
 ```
 
-**Result:** completed in ~1.5s. LP-D2 `deferred` with `amountUSD: 0`,
+**Result:** completes about a second after the last commitment. LP-D2 `deferred` with `amountUSD: 0`,
 `gapPercent: 10`, `bridgeTriggered: false`, `totalCommitted: 900000`.
 
 ## Scenario 3 — High-risk LP and GP decision
@@ -104,7 +105,7 @@ docker compose exec temporal-admin-tools temporal workflow start \
     "lpList":[{"lpId":"LP-08","commitmentUSD":500000,"email":"lp08@example.com"},
               {"lpId":"LP-01","commitmentUSD":500000,"email":"lp01@example.com"}]}'
 
-# within ~2s of starting:
+# within ~10s of starting (before the first reminder at 15s):
 docker compose exec temporal-admin-tools temporal workflow signal --address temporal:7233 --workflow-id CC-SIM-GPGATE --name lpCommitment --input '{"lpId":"LP-08"}'
 docker compose exec temporal-admin-tools temporal workflow signal --address temporal:7233 --workflow-id CC-SIM-GPGATE --name lpCommitment --input '{"lpId":"LP-01"}'
 
@@ -130,13 +131,13 @@ docker compose exec temporal-admin-tools temporal workflow start \
   --input '{"callId":"CC-SIM-CANCEL","fundId":"FUND-1","targetAmountUSD":1000000,"deadlineDays":10,"secondsPerDay":5,
     "lpList":[{"lpId":"LP-C1","commitmentUSD":1000000,"email":"lpc1@example.com"}]}'
 
-# within ~2s of starting, before any LP responds:
+# within ~10s of starting, before any LP responds:
 docker compose exec temporal-admin-tools temporal workflow signal --address temporal:7233 --workflow-id CC-SIM-CANCEL --name cancelCall
 
 docker compose exec temporal-admin-tools temporal workflow describe --address temporal:7233 --workflow-id CC-SIM-CANCEL
 ```
 
-**Result:** completed in ~1.2s with `"status":"cancelled"`.
+**Result:** completes about a second after the cancel, with `"status":"cancelled"`.
 
 ## Scenario 5 — No response
 
@@ -154,7 +155,7 @@ docker compose exec temporal-admin-tools temporal workflow start \
 docker compose exec temporal-admin-tools temporal workflow describe --address temporal:7233 --workflow-id CC-SIM-NORESPONSE
 ```
 
-**Result:** completed in ~11.5s. Both LPs `defaulted` with `followUps: 3`,
+**Result:** completes about 22s after start (10 business days × 2s). Both LPs `defaulted` with `followUps: 3`,
 `gapPercent: 100`, `bridgeTriggered: true`, `totalCommitted: 0`.
 
 ## Inspecting results
