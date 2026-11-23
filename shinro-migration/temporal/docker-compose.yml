@@ -1,0 +1,122 @@
+# Capital Call & Liquidity Orchestration — Temporal stack. See README.md for usage.
+name: temporal-assetmgmt
+
+x-worker-env: &worker-env
+  TEMPORAL_ADDRESS: temporal:7233
+  DATABASE_URL: postgres://assetmgmt:assetmgmt@postgres:5432/assetmgmt?sslmode=disable
+  SES_URL: http://mock-ses:8081
+  ML_SCORER_URL: http://ml-scorer:5001
+  CREDIT_FACILITY_URL: http://mock-credit-facility:8082
+  REPORT_DIR: /reports
+
+services:
+  # Temporal
+  temporal-postgresql:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+    volumes:
+      - temporal-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 3s
+      retries: 20
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: temporal
+    depends_on:
+      temporal-postgresql:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-postgresql
+    ports:
+      - "7233:7233"
+    healthcheck:
+      # the server binds to the container IP, not loopback
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
+      interval: 5s
+      retries: 30
+      start_period: 15s
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: temporal-ui
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:8233
+    ports:
+      - "8233:8080"
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:latest
+    container_name: temporal-admin-tools
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    stdin_open: true
+    tty: true
+
+  # Business systems and mocks
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: assetmgmt
+      POSTGRES_PASSWORD: assetmgmt
+      POSTGRES_DB: assetmgmt
+    ports:
+      - "5433:5432"
+    volumes:
+      - app-postgres-data:/var/lib/postgresql/data
+      - ../../db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../../db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assetmgmt"]
+      interval: 3s
+      retries: 20
+
+  mock-ses:
+    build: { context: ../.., args: { SERVICE: mockses } }
+    ports: ["8081:8081"]
+
+  mock-credit-facility:
+    build: { context: ../.., args: { SERVICE: mockcreditfacility } }
+    ports: ["8082:8082"]
+
+  ml-scorer:
+    build: { context: ../../services/ml-scorer }
+    ports: ["5001:5001"]
+
+  # Application
+  worker:
+    build: { context: . }
+    environment: *worker-env
+    volumes:
+      - ../../reports:/reports
+    depends_on:
+      temporal:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      mock-ses:
+        condition: service_started
+      ml-scorer:
+        condition: service_started
+      mock-credit-facility:
+        condition: service_started
+    restart: on-failure
+
+volumes:
+  temporal-postgres-data:
+  app-postgres-data:
