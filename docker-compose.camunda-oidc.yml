@@ -1,0 +1,258 @@
+# Camunda 8.10 with Keycloak OIDC: the local stand-in for the shared demo estate on EC2
+# (shinro-live-infra/assets/camunda-bundle/), so the Shinro demo path sees the same OIDC login,
+# per-application clients and meaningful roles it will see there.
+#
+#   docker compose -f docker-compose.camunda-oidc.yml up -d
+#   open http://localhost:8080/operate        # demo / demo, via Keycloak
+#
+# The lightweight docker-compose.yml beside it (H2 + basic auth) is NOT replaced and is still
+# right for fast app work; the two cannot run at once, as both want 8080/26500/9600.
+#
+# Trimmed from camunda-distributions' camunda-8.10/docker-compose-full.yaml to the five services
+# the demo needs, dropping connectors, optimize, hub and mailpit. It differs from the EC2 bundle
+# only because nothing terminates TLS here: an http front channel, no awslogs or CloudWatch
+# agent, and local-only literals in camunda/oidc/camunda-oidc.env instead of SSM + Secrets
+# Manager.
+#
+# APP SERVICES ARE NOT HERE YET: worker, api-server, the ledger Postgres and the three mocks
+# arrive in T4. This file brings up the cluster only.
+
+name: camunda-assetmgmt-oidc
+
+services:
+
+  # Camunda writes this volume as uid 1001 and cannot chown it itself; upstream ships the same fixer.
+  camunda-data-init:
+    image: camunda/camunda:${CAMUNDA_VERSION:-8.10.9}
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c", "chown -R 1001:1001 /usr/local/camunda/camunda-data && chmod 775 /usr/local/camunda/camunda-data"]
+    volumes:
+      - camunda-data:/usr/local/camunda/camunda-data
+    restart: "no"
+
+  orchestration: # Zeebe + Operate + Tasklist + the Orchestration Cluster REST API
+    image: camunda/camunda:${CAMUNDA_VERSION:-8.10.9}
+    container_name: assetmgmt-orchestration
+    ports:
+      - "8080:8080"   # Operate / Tasklist / Admin UIs + REST /v2 + /sso-callback
+      - "26500:26500" # Zeebe gRPC
+      - "9600:9600"   # management / health
+    environment:
+      # Laptop-sized: it shares 15.6 GiB with the kind cluster, the Shinro API and Redis.
+      # EC2 runs -Xms2g -Xmx2g because it is shared by every prospect instead.
+      JAVA_TOOL_OPTIONS: "-Xms512m -Xmx1g"
+    # Spring resolves application.yaml's ${...} from the container environment, which this
+    # fills. 8.10 sets no CAMUNDA_SECURITY_* variables at all, unlike 8.8.
+    env_file:
+      - path: ./camunda/oidc/camunda-oidc.env
+        required: true
+    volumes:
+      - orchestration:/usr/local/camunda/data
+      - camunda-data:/usr/local/camunda/camunda-data
+      - ./camunda/oidc/application.yaml:/usr/local/camunda/config/application.yaml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 10s bash -c ':> /dev/tcp/127.0.0.1/9600' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: on-failure
+    depends_on:
+      camunda-data-init:
+        condition: service_completed_successfully
+      elasticsearch:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - camunda-platform
+
+  # One-shot: deploys capital-call, lp-response and the GP form so Operate is not empty the
+  # moment the stack is up. It doubles as proof of the auth chain end to end — a
+  # client-credentials grant, then an authenticated write — so if it succeeds, OIDC works.
+  # Not the app's `worker`, which needs the T4 services; this needs only a token and /v2.
+  # Re-running `up` deploys the same models again, which Camunda versions harmlessly.
+  deploy-models:
+    image: curlimages/curl:8.11.1
+    container_name: assetmgmt-deploy-models
+    restart: "no"
+    env_file:
+      - path: ./camunda/oidc/camunda-oidc.env
+        required: true
+    volumes:
+      - ./bpmn:/bpmn:ro
+    entrypoint: ["/bin/sh", "-c"]
+    # $$ keeps the shell's variables out of compose's own substitution.
+    command:
+      - |
+        set -eu
+        TOKEN_URL="http://keycloak:18080/auth/realms/camunda-platform/protocol/openid-connect/token"
+
+        # identity healthy means its port answers, not that the realm is seeded; retry, do
+        # not race it.
+        i=0
+        TOKEN=""
+        while [ $$i -lt 30 ]; do
+          TOKEN=$$(curl -sS -X POST "$$TOKEN_URL" \
+            -d grant_type=client_credentials \
+            -d client_id=assetmgmt-app \
+            -d client_secret="$$ASSETMGMT_APP_CLIENT_SECRET" \
+            | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
+          [ -n "$$TOKEN" ] && break
+          i=$$((i+1))
+          echo "waiting for the assetmgmt-app client to exist in Keycloak ($$i/30)"
+          sleep 5
+        done
+        if [ -z "$$TOKEN" ]; then
+          echo "FAILED: no token for assetmgmt-app. Is identity seeding the realm?" >&2
+          exit 1
+        fi
+
+        echo "deploying BPMN and forms as assetmgmt-app..."
+        curl -sS --fail-with-body -X POST http://orchestration:8080/v2/deployments \
+          -H "Authorization: Bearer $$TOKEN" \
+          -F resources=@/bpmn/capital-call.bpmn \
+          -F resources=@/bpmn/lp-response.bpmn \
+          -F resources=@/bpmn/gp-approval.form
+        echo
+        echo "deployed."
+    depends_on:
+      orchestration:
+        condition: service_healthy
+      identity:
+        condition: service_healthy
+    networks:
+      - camunda-platform
+
+  identity: # Seeds the Keycloak realm: clients, roles and the demo user
+    image: camunda/identity:${CAMUNDA_IDENTITY_VERSION:-8.10.5}
+    container_name: assetmgmt-identity
+    ports:
+      - "8084:8084"
+    env_file:
+      - path: ./camunda/oidc/camunda-oidc.env
+        required: true
+    volumes:
+      - ./camunda/oidc/identity.application.yaml:/app/application.yaml:ro
+    healthcheck:
+      # 8082, NOT the 8084 in `server.port` — the actuator has its own management port, as
+      # orchestration splits 8080 and 9600. Verified by probing both inside the container:
+      # upstream is right and this looks like a typo, but is not.
+      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 5s
+      timeout: 15s
+      retries: 30
+      start_period: 60s
+    restart: on-failure
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks:
+      - camunda-platform
+      - identity-network
+
+  keycloak:
+    image: camunda/keycloak:${KEYCLOAK_SERVER_VERSION:-quay-26.6.4}
+    container_name: assetmgmt-keycloak
+    command: [start]
+    ports:
+      - "18080:18080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/${POSTGRES_DB:-keycloak}
+      KC_DB_USERNAME: ${POSTGRES_USER:-keycloak}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-REMOVED}
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: 18080
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_TRANSACTION_XA_ENABLED: "false"
+      # THE IMPORTANT ONE: pins `iss` to the browser-facing URL whichever channel reached
+      # Keycloak. Without it, KC_HOSTNAME_STRICT=false derives the issuer from the Host
+      # header, so browser login and the back-channel token call disagree and validation
+      # fails opaquely. The EC2 bundle calls this split "the whole fix".
+      KC_HOSTNAME: http://localhost:18080/auth
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          echo -e 'GET /auth/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          timeout 5 cat <&3 | grep -q '200 OK'
+      interval: 15s
+      timeout: 15s
+      retries: 15
+      start_period: 30s
+    restart: on-failure
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+    networks:
+      - camunda-platform
+      - identity-network
+
+  # KEYCLOAK'S store, never the app's: the ledger Postgres is a separate T4 service on 5433,
+  # with its own name and volume.
+  keycloak-postgres:
+    image: postgres:${POSTGRES_VERSION:-15-alpine3.24}
+    container_name: assetmgmt-keycloak-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-keycloak}
+      POSTGRES_USER: ${POSTGRES_USER:-keycloak}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-REMOVED}
+    # Not published: nothing outside the stack needs it, and 5432 stays free on the host.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: on-failure
+    volumes:
+      - keycloak-postgres:/var/lib/postgresql/data
+    networks:
+      - identity-network
+
+  elasticsearch: # Operate's secondary storage. 8.10 wants 8.19, not 8.17.
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.19.25}
+    container_name: assetmgmt-elasticsearch
+    environment:
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    # Instance-local, as on EC2: nothing outside the stack talks to it.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cat/health?h=status | grep -Eq 'green|yellow'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: on-failure
+    volumes:
+      - elastic:/usr/share/elasticsearch/data
+    networks:
+      - camunda-platform
+
+volumes:
+  orchestration:
+  camunda-data:
+  elastic:
+  keycloak-postgres:
+
+networks:
+  # Keycloak and Identity sit on both networks, so the auth database is invisible to the cluster.
+  camunda-platform:
+    name: assetmgmt-camunda-platform
+  identity-network:
+    name: assetmgmt-identity-network

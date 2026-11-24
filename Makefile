@@ -1,6 +1,13 @@
-.PHONY: up down clean status logs demo demo-auto deploy bpmn build test
+.PHONY: up down clean status logs demo demo-auto deploy bpmn build test \
+        oidc-up oidc-down oidc-clean oidc-status oidc-logs
 
 JAR := target/camunda-assetmgmt.jar
+
+# The OIDC estate (docker-compose.camunda-oidc.yml) is a SECOND stack: Camunda
+# 8.10 behind Keycloak, mirroring the shared demo estate on EC2. It is not a
+# replacement for the lightweight stack above, and the two cannot run at once —
+# they both want 8080, 26500 and 9600.
+OIDC := docker compose -f docker-compose.camunda-oidc.yml
 
 up:            ## build & start Camunda 8.10 + all services
 	docker compose up -d --build
@@ -20,6 +27,24 @@ status:
 
 logs:          ## follow worker + api logs
 	docker compose logs -f worker api-server
+
+oidc-up:       ## start the Keycloak/OIDC Camunda estate (mirrors EC2)
+	$(OIDC) up -d
+	@echo "Waiting for Camunda to become healthy (first boot pulls ~2 GB; allow several minutes)..."
+	@until [ "$$(docker inspect -f '{{.State.Health.Status}}' assetmgmt-orchestration 2>/dev/null)" = "healthy" ]; do sleep 5; done
+	@echo "Ready:  Operate http://localhost:8080/operate (demo/demo via Keycloak) | Keycloak http://localhost:18080/auth (admin/admin)"
+
+oidc-down:     ## stop the OIDC estate (keeps data)
+	$(OIDC) down
+
+oidc-clean:    ## stop the OIDC estate and wipe its volumes (incl. the Keycloak realm)
+	$(OIDC) down -v
+
+oidc-status:
+	$(OIDC) ps
+
+oidc-logs:     ## follow the OIDC estate's logs
+	$(OIDC) logs -f orchestration identity keycloak
 
 $(JAR): pom.xml $(shell find src/main -type f 2>/dev/null)
 	mvn -B -q -DskipTests package

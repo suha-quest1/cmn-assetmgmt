@@ -1,0 +1,138 @@
+# Camunda Identity 8.10 for the local OIDC estate: seeds the Keycloak realm with the clients,
+# APIs, roles and the one human user. Modelled on the EC2 bundle's .identity/application.yaml
+# (8.8; the schema is unchanged in 8.10), with local changes marked "LOCAL:".
+#
+# Two layers have to agree: this file decides what a token carries, camunda/oidc/application.yaml
+# decides what that identity may do inside the cluster. Change a client here, check the role there.
+
+identity:
+  url: "http://localhost:8084"
+  flags:
+    multi-tenancy: "false"
+
+  authProvider:
+    # LOCAL: the front-channel issuer, matching KC_HOSTNAME so `iss` is identical on both
+    # channels. Backend calls stay on the internal service name.
+    issuer-url: "http://${HOST:localhost}:18080/auth/realms/camunda-platform"
+    backend-url: "http://${KEYCLOAK_HOST:keycloak}:18080/auth/realms/camunda-platform"
+
+  component-presets:
+    identity:
+      apis:
+        - name: "Camunda Identity Resource Server"
+          audience: "camunda-identity-resource-server"
+          permissions:
+            - definition: read
+              description: "Read permission"
+            - definition: "read:users"
+              description: "Read users permission"
+            - definition: write
+              description: "Write permission"
+      roles:
+        - name: "ManagementIdentity"
+          description: "Provides full access to Identity"
+          permissions:
+            - audience: "camunda-identity-resource-server"
+              definition: read
+            - audience: "camunda-identity-resource-server"
+              definition: write
+
+    orchestration:
+      applications:
+        - name: Orchestration
+          id: orchestration
+          type: confidential
+          secret: ${ORCHESTRATION_CLIENT_SECRET}
+          # LOCAL: http and the published port, or Keycloak answers "Invalid parameter:
+          # redirect_uri" after login.
+          root-url: "http://${HOST:localhost}:8080"
+          redirect-uris:
+            - "/sso-callback"
+
+        # LOCAL: the job workers get their own client, never `orchestration`, so the app's
+        # rights narrow independently of the cluster's.
+        - name: AssetMgmt App
+          id: assetmgmt-app
+          type: m2m
+          secret: ${ASSETMGMT_APP_CLIENT_SECRET}
+          permissions:
+            - audience: "orchestration-api"
+              definition: read:*
+            - audience: "orchestration-api"
+              definition: write:*
+
+        # LOCAL: Shinro's analyzer, read-only at the Keycloak layer — its token carries no
+        # write:*, which is enforced whatever its Camunda-side role says.
+        - name: Shinro Assessment
+          id: shinro-assessment
+          type: m2m
+          secret: ${SHINRO_ASSESSMENT_CLIENT_SECRET}
+          permissions:
+            - audience: "orchestration-api"
+              definition: read:*
+
+      apis:
+        - name: "Orchestration API"
+          audience: "orchestration-api"
+          permissions:
+            - definition: read:*
+              description: "Read permission"
+            - definition: write:*
+              description: "Write permission"
+
+      roles:
+        - name: "Orchestration"
+          description: "Grants full access to Orchestration"
+          permissions:
+            - audience: "orchestration-api"
+              definition: read:*
+            - audience: "orchestration-api"
+              definition: write:*
+        # LOCAL: the Keycloak half of the read-only human account; the Camunda half is the
+        # `readonly-admin` role in camunda/oidc/application.yaml.
+        - name: "Orchestration Read"
+          description: "Read-only access to Orchestration"
+          permissions:
+            - audience: "orchestration-api"
+              definition: read:*
+
+keycloak:
+  url: "http://${KEYCLOAK_HOST:keycloak}:18080/auth"
+  setup:
+    user: "${KEYCLOAK_ADMIN_USER}"
+    password: "${KEYCLOAK_ADMIN_PASSWORD}"
+  init:
+    orchestration:
+      secret: ${ORCHESTRATION_CLIENT_SECRET}
+  environment:
+    clients:
+      - name: Identity
+        id: "camunda-identity"
+        type: CONFIDENTIAL
+        secret: ${CAMUNDA_IDENTITY_CLIENT_SECRET}
+        root-url: "http://localhost:8084"
+        redirect-uris:
+          - "/auth/login-callback"
+  users:
+    # The one human account: demo/demo locally, a generated name and a 40-character password
+    # on EC2, where every prospect shares it.
+    - username: "${CAMUNDA_DEMO_USERNAME:demo}"
+      password: "${CAMUNDA_DEMO_PASSWORD:demo}"
+      firstName: "Demo"
+      lastName: "User"
+      email: "demo@example.org"
+      # Read-only, matching this user's `readonly-admin` role in camunda/oidc/application.yaml.
+      # Identity only CREATES missing users, so editing this needs `make oidc-clean` to take effect.
+      roles:
+        - Orchestration Read
+
+server:
+  port: 8084
+
+spring:
+  profiles:
+    active: keycloak
+
+camunda:
+  identity:
+    audience: "camunda-identity-resource-server"

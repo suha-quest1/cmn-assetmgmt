@@ -1,0 +1,123 @@
+# Camunda 8.10 orchestration config for the local OIDC estate. Upstream is
+# camunda-distributions camunda-8.10/.orchestration/application.yaml; local changes say "LOCAL:".
+#
+# The reason this file exists: in 8.10 the OIDC settings live HERE as Spring keys, not as the
+# CAMUNDA_SECURITY_AUTHENTICATION_OIDC_* variables the 8.8 EC2 estate uses — those names are
+# silently ignored, leaving an unauthenticated cluster that looks configured. Spring resolves
+# the ${...} below from the container environment, filled from camunda/oidc/camunda-oidc.env.
+
+camunda:
+  identity:
+    # Back channel: Camunda validating tokens, server to server.
+    issuer-backend-url: "http://${KEYCLOAK_HOST:keycloak}:18080/auth/realms/camunda-platform"
+    base-url: http://identity:8084
+    audience: orchestration-api
+
+  security:
+    authentication:
+      method: "oidc"
+      unprotectedApi: false
+      oidc:
+        client-id: "${ORCHESTRATION_CLIENT_ID:orchestration}"
+        client-secret: "${ORCHESTRATION_CLIENT_SECRET}"
+        # LOCAL: no web-modeler-api; the hub/web-modeler services are not in this trim.
+        audiences:
+          - orchestration
+          - orchestration-api
+        # FRONT CHANNEL: the browser follows these, so localhost, never a service name.
+        authorization-uri: "http://${HOST:localhost}:18080/auth/realms/camunda-platform/protocol/openid-connect/auth"
+        redirect-uri: "http://${HOST:localhost}:8080/sso-callback"
+        # BACK CHANNEL: Camunda calls these itself, so they stay on the service name.
+        token-uri: "http://${KEYCLOAK_HOST:keycloak}:18080/auth/realms/camunda-platform/protocol/openid-connect/token"
+        jwk-set-uri: "http://${KEYCLOAK_HOST:keycloak}:18080/auth/realms/camunda-platform/protocol/openid-connect/certs"
+        username-claim: preferred_username
+        client-id-claim: client_id
+
+    authorizations:
+      enabled: true
+
+    initialization:
+      defaultRoles:
+        # Mirrors EC2: nothing a human or Shinro uses is admin. This lists role ASSIGNMENTS,
+        # not the catalogue — 8.10 ships six roles, all visible at :8080/admin.
+        admin:
+          clients:
+            - orchestration
+            # The job worker has to write; `task-worker` may be narrower (todo T3). EC2
+            # carries the same over-grant as an acknowledged deviation.
+            - assetmgmt-app
+
+        # The shared human account and Shinro's analyzer: read, never write, so one person
+        # cannot cancel another's workflow. Both halves matter — this grants the Camunda role,
+        # identity.application.yaml the matching Keycloak one.
+        readonly-admin:
+          users:
+            - ${CAMUNDA_DEMO_USERNAME:demo}
+          clients:
+            - shinro-assessment
+
+  # LOCAL: Elasticsearch as on EC2, not the lightweight stack's H2, because Operate needs it.
+  # Single-node needs 0 replicas and 8.10 defaults to 1, so set it here — and never also set
+  # the 8.8 spelling camunda.database.index.numberOfReplicas, which is legacy and makes the
+  # cluster refuse to boot with "Ambiguous configuration".
+  data:
+    secondary-storage:
+      type: elasticsearch
+      elasticsearch:
+        url: "http://elasticsearch:9200"
+        number-of-replicas: 0
+
+  operate:
+    identity:
+      redirectRootUrl: "http://${HOST:localhost}:8080/operate"
+
+  tasklist:
+    identity:
+      redirectRootUrl: "http://${HOST:localhost}:8080/tasklist"
+
+spring:
+  profiles:
+    active: "identity,operate,tasklist,broker,consolidated-auth"
+
+management:
+  server:
+    port: 9600
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+server:
+  # LOCAL: `none`, not EC2's `native` — nothing here terminates TLS or sends X-Forwarded-*.
+  forward-headers-strategy: none
+  address: 0.0.0.0
+
+zeebe:
+  host: 0.0.0.0
+  log:
+    level: "info"
+  broker:
+    gateway:
+      enable: true
+      network:
+        host: 0.0.0.0
+        port: 26500
+      security:
+        authentication:
+          identity:
+            issuerBackendUrl: "http://${KEYCLOAK_HOST:keycloak}:18080/auth/realms/camunda-platform"
+    network:
+      host: 0.0.0.0
+      commandApi:
+        port: 26501
+      internalApi:
+        port: 26502
+    data:
+      snapshotPeriod: 5m
+    threads:
+      cpuThreadCount: "3"
+      ioThreadCount: "3"
+    # NO `exporters:` block: 8.10 derives them from camunda.data.secondary-storage, and
+    # declaring them (as the 8.8 bundle must) reintroduces the legacy properties that break
+    # the boot. That loses 8.8's `bulk.size: 1`, which made Operate update instantly; if it
+    # lags in a demo, find the 8.10 equivalent under secondary-storage.elasticsearch.

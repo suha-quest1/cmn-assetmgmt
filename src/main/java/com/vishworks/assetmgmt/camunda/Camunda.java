@@ -22,11 +22,8 @@ import java.util.concurrent.Executors;
 /**
  * Creation and configuration of the official {@link CamundaClient}.
  *
- * <p>Configured with {@code preferRestOverGrpc(true)} so every command (deployment, process
- * instance creation, message publication/correlation, job activation/completion/failure,
- * topology) goes over the Orchestration Cluster REST API (/v2). That keeps the deployment to
- * a single endpoint — only {@code CAMUNDA_REST_ADDRESS} is needed, with no separate gRPC
- * address or port to open.
+ * <p>Every command goes over the REST API (/v2), so the deployment needs only {@code
+ * CAMUNDA_REST_ADDRESS} and no open gRPC port.
  */
 public final class Camunda {
   private Camunda() {}
@@ -35,31 +32,65 @@ public final class Camunda {
   static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
   /**
-   * Builds a client for the given REST base URL. Basic authentication is applied when
-   * CAMUNDA_USERNAME is set (CAMUNDA_PASSWORD may be empty), as in camunda.New().
+   * Builds a client for the given REST base URL. Auth follows the environment: OIDC when
+   * {@code CAMUNDA_CLIENT_ID} is set, basic when {@code CAMUNDA_USERNAME} is, otherwise none —
+   * so one build runs against either cluster. OIDC first, so setting both is unambiguous.
    */
   public static CamundaClient newClient(String baseUrl) {
     String rest = baseUrl.replaceAll("/+$", "");
     CamundaClientBuilder b = CamundaClient.newClientBuilder()
-        // Configuration comes only from this application's own environment variables,
-        // so the client's CAMUNDA_* auto-configuration cannot change behaviour.
+        // Only this class reads the environment; the client's own CAMUNDA_* auto-configuration
+        // must not, hence applyEnvironmentOverrides(false) on the providers below too.
         .applyEnvironmentVariableOverrides(false)
         .restAddress(URI.create(rest))
         .preferRestOverGrpc(true)
         .defaultRequestTimeout(REQUEST_TIMEOUT)
         // One virtual thread per activated job, so a slow handler cannot stall the others.
         .jobHandlingExecutor(Executors.newVirtualThreadPerTaskExecutor(), true);
-    String user = System.getenv("CAMUNDA_USERNAME");
-    if (user != null && !user.isEmpty()) {
-      String pw = System.getenv("CAMUNDA_PASSWORD");
-      CredentialsProvider cp = CredentialsProvider.newBasicAuthCredentialsProviderBuilder()
-          .applyEnvironmentOverrides(false)
-          .username(user)
-          .password(pw == null ? "" : pw)
-          .build();
+    CredentialsProvider cp = credentials();
+    if (cp != null) {
       b.credentialsProvider(cp);
     }
     return b.build();
+  }
+
+  /** The credentials provider implied by the environment, or null for an unprotected API. */
+  private static CredentialsProvider credentials() {
+    String clientId = System.getenv("CAMUNDA_CLIENT_ID");
+    if (clientId != null && !clientId.isEmpty()) {
+      String tokenUrl = System.getenv("CAMUNDA_OAUTH_TOKEN_URL");
+      if (tokenUrl == null || tokenUrl.isEmpty()) {
+        // The builder's own default is Camunda SaaS, so a missing variable would fail
+        // while reaching the internet and read as a network fault, not a config one.
+        throw new IllegalStateException(
+            "CAMUNDA_CLIENT_ID is set but CAMUNDA_OAUTH_TOKEN_URL is not; refusing to "
+                + "fall back to Camunda SaaS. Set it to the token endpoint of your "
+                + "identity provider, e.g. "
+                + "http://keycloak:18080/auth/realms/camunda-platform/protocol/openid-connect/token");
+      }
+      String audience = System.getenv("CAMUNDA_TOKEN_AUDIENCE");
+      return CredentialsProvider.newCredentialsProviderBuilder()
+          .applyEnvironmentOverrides(false)
+          .clientId(clientId)
+          .clientSecret(orEmpty(System.getenv("CAMUNDA_CLIENT_SECRET")))
+          // The orchestration cluster rejects a token whose `aud` does not name it.
+          .audience(audience == null || audience.isEmpty() ? "orchestration-api" : audience)
+          .authorizationServerUrl(tokenUrl)
+          .build();
+    }
+    String user = System.getenv("CAMUNDA_USERNAME");
+    if (user != null && !user.isEmpty()) {
+      return CredentialsProvider.newBasicAuthCredentialsProviderBuilder()
+          .applyEnvironmentOverrides(false)
+          .username(user)
+          .password(orEmpty(System.getenv("CAMUNDA_PASSWORD")))
+          .build();
+    }
+    return null;
+  }
+
+  private static String orEmpty(String v) {
+    return v == null ? "" : v;
   }
 
   /** Blocks until the cluster answers the topology endpoint (WaitReady). */
