@@ -7,6 +7,11 @@ JAR := target/camunda-assetmgmt.jar
 # 8.10 behind Keycloak, mirroring the shared demo estate on EC2. It is not a
 # replacement for the lightweight stack above, and the two cannot run at once —
 # they both want 8080, 26500 and 9600.
+#
+# It carries the Camunda platform ONLY — no worker, api-server, ledger or mocks;
+# those are the lightweight stack's, and are not duplicated. `oidc-up` therefore
+# pulls images but builds no jar, and `deploy-models` populates Operate with no
+# application running.
 OIDC := docker compose -f docker-compose.camunda-oidc.yml
 
 up:            ## build & start Camunda 8.10 + all services

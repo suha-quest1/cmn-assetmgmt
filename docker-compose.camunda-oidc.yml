@@ -5,8 +5,17 @@
 #   docker compose -f docker-compose.camunda-oidc.yml up -d
 #   open http://localhost:8080/operate        # demo / demo, via Keycloak
 #
-# The lightweight docker-compose.yml beside it (H2 + basic auth) is NOT replaced and is still
-# right for fast app work; the two cannot run at once, as both want 8080/26500/9600.
+# SCOPE: the Camunda platform and nothing else. The application (worker, api-server,
+# demo-driver) and its backing services (ledger Postgres, the two mocks, ml-scorer) live in
+# docker-compose.yml, which is the app's own stack -- they are deliberately NOT duplicated
+# here. Consequences worth knowing:
+#   * bring-up is pull-only; no `build:` context, so no jar is compiled to start Camunda
+#   * `deploy-models` below is what puts the process models in, so Operate is populated with
+#     no application running at all
+#   * the end-to-end app run against THIS cluster is therefore not a single command. It was
+#     verified once (see tasks/todo-assetmgmt-demo-path.md T4); to repeat it, override the
+#     base file rather than copying services back in:
+#       docker compose -f docker-compose.yml -f docker-compose.camunda-oidc.yml ...
 #
 # Trimmed from camunda-distributions' camunda-8.10/docker-compose-full.yaml to the five services
 # the demo needs, dropping connectors, optimize, hub and mailpit. It differs from the EC2 bundle
@@ -14,29 +23,15 @@
 # agent, and local-only literals in camunda/oidc/camunda-oidc.env instead of SSM + Secrets
 # Manager.
 #
-# Host ports clash with the lightweight stack by design (8080, 8081, 8082, 5001, 5433, 8090):
-# they are the same application, so only one stack runs at a time.
+# Host ports clash with docker-compose.yml by design (8080, 26500, 9600): both carry a Camunda,
+# so only one stack runs at a time.
 
 name: camunda-assetmgmt-oidc
 
-# Shared by worker, api-server and demo-driver. Identical to the lightweight stack's x-app-env
-# except for the ledger host and the four CAMUNDA_* OIDC settings, which have no equivalent
-# there because that cluster's API is unprotected.
-x-app-env: &app-env
-  CAMUNDA_REST_ADDRESS: http://orchestration:8080
-  CAMUNDA_PUBLIC_URL: http://localhost:8080
-  PORTAL_PUBLIC_URL: http://localhost:8090
-  DATABASE_URL: postgres://assetmgmt:assetmgmt@assetmgmt-postgres:5432/assetmgmt?sslmode=disable
-  REPORT_DIR: /reports
-  # Setting CAMUNDA_CLIENT_ID is what makes Camunda.java take its OIDC branch.
-  CAMUNDA_CLIENT_ID: assetmgmt-app
-  # NOT from camunda/oidc/camunda-oidc.env: `env_file` feeds a container, while ${...} here is
-  # compose substitution, which reads the shell and ./.env only. The default is what actually
-  # applies, so it has to match that file. (Leaving it out blanked every tag once already.)
-  CAMUNDA_CLIENT_SECRET: ${ASSETMGMT_APP_CLIENT_SECRET:-REMOVED}
-  CAMUNDA_OAUTH_TOKEN_URL: http://keycloak:18080/auth/realms/camunda-platform/protocol/openid-connect/token
-  # The orchestration cluster rejects a token whose `aud` does not name it.
-  CAMUNDA_TOKEN_AUDIENCE: orchestration-api
+# No x-app-env anchor here on purpose: the four CAMUNDA_CLIENT_* / CAMUNDA_OAUTH_* settings it
+# carried exist to point the Java app at an OIDC cluster, and the app is not in this file. An
+# override that does run the app against this cluster is where they belong. `deploy-models`
+# needs none of them -- it reads ASSETMGMT_APP_CLIENT_SECRET from camunda-oidc.env instead.
 
 services:
 
@@ -89,7 +84,7 @@ services:
   # One-shot: deploys capital-call, lp-response and the GP form so Operate is not empty the
   # moment the stack is up. It doubles as proof of the auth chain end to end — a
   # client-credentials grant, then an authenticated write — so if it succeeds, OIDC works.
-  # Not the app's `worker`, which needs the T4 services; this needs only a token and /v2.
+  # Not the app's `worker` (that lives in docker-compose.yml); this needs only a token and /v2.
   # Re-running `up` deploys the same models again, which Camunda versions harmlessly.
   deploy-models:
     image: curlimages/curl:8.11.1
@@ -215,8 +210,8 @@ services:
       - camunda-platform
       - identity-network
 
-  # KEYCLOAK'S store, never the app's: the ledger Postgres is a separate T4 service on 5433,
-  # with its own name and volume.
+  # KEYCLOAK'S store, never the app's: the ledger Postgres is a separate service, in
+  # docker-compose.yml, on host port 5433 with its own name and volume.
   keycloak-postgres:
     image: postgres:${POSTGRES_VERSION:-15-alpine3.24}
     container_name: assetmgmt-keycloak-postgres
@@ -263,116 +258,11 @@ services:
     networks:
       - camunda-platform
 
-  # ─── Business systems / mocks ─────────────────────────────────────────
-
-  # THE APPLICATION'S ledger, not Keycloak's. Separate service, separate volume, published on
-  # 5433 so both can run; the verification for this task is that the two are provably distinct.
-  assetmgmt-postgres: # fund admin system + double-entry ledger
-    image: postgres:16-alpine
-    container_name: assetmgmt-postgres
-    environment:
-      POSTGRES_USER: assetmgmt
-      POSTGRES_PASSWORD: assetmgmt
-      POSTGRES_DB: assetmgmt
-    ports:
-      - "5433:5432"
-    volumes:
-      - assetmgmt-postgres:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U assetmgmt"]
-      interval: 3s
-      retries: 20
-    restart: on-failure
-    networks:
-      - assetmgmt
-
-  mock-ses: # e-mail / Slack log viewer
-    build: { context: ., args: { SERVICE: mockses } }
-    ports: ["8081:8081"]
-    networks:
-      - assetmgmt
-
-  # 8082 on the host. Identity's management port is also 8082, but inside its own container and
-  # unpublished, so the two never meet.
-  mock-credit-facility: # bridge / subscription line HTTP stub
-    build: { context: ., args: { SERVICE: mockcreditfacility } }
-    ports: ["8082:8082"]
-    networks:
-      - assetmgmt
-
-  ml-scorer: # Flask default-risk model
-    build: { context: ./services/ml-scorer }
-    ports: ["5001:5001"]
-    networks:
-      - assetmgmt
-
-  # ─── Application (Java) ───────────────────────────────────────────────
-
-  worker: # Camunda job workers
-    build: { context: ., args: { SERVICE: worker } }
-    container_name: assetmgmt-worker
-    environment:
-      <<: *app-env
-      SES_URL: http://mock-ses:8081
-      ML_SCORER_URL: http://ml-scorer:5001
-      CREDIT_FACILITY_URL: http://mock-credit-facility:8082
-      BPMN_DIR: /app/bpmn
-      # The one difference from the lightweight stack: `deploy-models` already put the
-      # resources in, and the worker's default is to deploy them again on startup, which
-      # would climb the version by two on every bring-up. Deliberately not the other way
-      # round — Operate should show the process model even with the app down.
-      DEPLOY_ON_START: "false"
-    volumes:
-      - ./reports:/reports
-    depends_on:
-      orchestration: { condition: service_healthy }
-      assetmgmt-postgres: { condition: service_healthy }
-      mock-ses: { condition: service_started }
-      ml-scorer: { condition: service_started }
-      mock-credit-facility: { condition: service_started }
-    restart: on-failure
-    networks:
-      - camunda-platform
-      - assetmgmt
-
-  api-server: # REST/webhook endpoints + live dashboard
-    build: { context: ., args: { SERVICE: apiserver } }
-    container_name: assetmgmt-api-server
-    environment:
-      <<: *app-env
-      LISTEN_ADDR: ":8090"
-      SES_PUBLIC_URL: http://localhost:8081
-    ports: ["8090:8090"]
-    volumes:
-      - ./reports:/reports
-    depends_on:
-      orchestration: { condition: service_healthy }
-      assetmgmt-postgres: { condition: service_healthy }
-      # It starts process instances, so the models have to be in the cluster first.
-      deploy-models: { condition: service_completed_successfully }
-    restart: on-failure
-    networks:
-      - camunda-platform
-      - assetmgmt
-
-  demo-driver: # docker compose -f docker-compose.camunda-oidc.yml --profile demo run --rm demo-driver
-    build: { context: ., args: { SERVICE: demodriver } }
-    profiles: ["demo"]
-    environment:
-      API_URL: http://api-server:8090
-    depends_on:
-      api-server: { condition: service_started }
-    networks:
-      - assetmgmt
-
 volumes:
   orchestration:
   camunda-data:
   elastic:
-  keycloak-postgres:
-  assetmgmt-postgres: # the ledger; keycloak-postgres above is the auth store
+  keycloak-postgres: # Keycloak's auth store; the app's ledger lives in docker-compose.yml
 
 networks:
   # Keycloak and Identity sit on both networks, so the auth database is invisible to the cluster.
@@ -380,7 +270,3 @@ networks:
     name: assetmgmt-camunda-platform
   identity-network:
     name: assetmgmt-identity-network
-  # The app and its own backing services. worker and api-server sit on both, so the ledger and
-  # the mocks are invisible to the orchestration cluster.
-  assetmgmt:
-    name: assetmgmt-app
