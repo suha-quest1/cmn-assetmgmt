@@ -1,3 +1,6 @@
 reports/*
 !reports/.gitkeep
 target/
+
+# Local secrets for the OIDC estate; camunda-oidc.env.example is the committed template.
+camunda/oidc/camunda-oidc.env

@@ -1,5 +1,5 @@
 .PHONY: up down clean status logs demo demo-auto deploy bpmn build test \
-        oidc-up oidc-down oidc-clean oidc-status oidc-logs
+        oidc-env oidc-up oidc-down oidc-clean oidc-status oidc-logs
 
 JAR := target/camunda-assetmgmt.jar
 
@@ -12,7 +12,9 @@ JAR := target/camunda-assetmgmt.jar
 # those are the lightweight stack's, and are not duplicated. `oidc-up` therefore
 # pulls images but builds no jar, and `deploy-models` populates Operate with no
 # application running.
-OIDC := docker compose -f docker-compose.camunda-oidc.yml
+# Gitignored; also passed as --env-file so the compose file's own ${...} read it.
+OIDC_ENV := camunda/oidc/camunda-oidc.env
+OIDC := docker compose --env-file $(OIDC_ENV) -f docker-compose.camunda-oidc.yml
 
 up:            ## build & start Camunda 8.10 + all services
 	docker compose up -d --build
@@ -33,22 +35,30 @@ status:
 logs:          ## follow worker + api logs
 	docker compose logs -f worker api-server
 
-oidc-up:       ## start the Keycloak/OIDC Camunda estate (mirrors EC2)
+oidc-env: $(OIDC_ENV)  ## create camunda-oidc.env with random secrets (never overwrites)
+
+# Order-only: an edited template never regenerates, and so never rotates, existing secrets.
+$(OIDC_ENV): | $(OIDC_ENV).example
+	@awk -F= '/^[A-Z_]+=$$/ { cmd = "openssl rand -hex 16"; cmd | getline v; close(cmd); print $$1 "=" v; next } { print }' $(OIDC_ENV).example > $@
+	@chmod 600 $@
+	@echo "Wrote $@ with fresh secrets. Copy SHINRO_ASSESSMENT_CLIENT_SECRET into shinro's apps/api/.env."
+
+oidc-up: $(OIDC_ENV)  ## start the Keycloak/OIDC Camunda estate (mirrors EC2)
 	$(OIDC) up -d
 	@echo "Waiting for Camunda to become healthy (first boot pulls ~2 GB; allow several minutes)..."
 	@until [ "$$(docker inspect -f '{{.State.Health.Status}}' assetmgmt-orchestration 2>/dev/null)" = "healthy" ]; do sleep 5; done
-	@echo "Ready:  Operate http://localhost:8080/operate (demo/demo via Keycloak) | Keycloak http://localhost:18080/auth (admin/admin)"
+	@echo "Ready:  Operate http://localhost:8080/operate | Keycloak http://localhost:18080/auth (logins: $(OIDC_ENV))"
 
-oidc-down:     ## stop the OIDC estate (keeps data)
+oidc-down: $(OIDC_ENV)  ## stop the OIDC estate (keeps data)
 	$(OIDC) down
 
-oidc-clean:    ## stop the OIDC estate and wipe its volumes (incl. the Keycloak realm)
+oidc-clean: $(OIDC_ENV)  ## stop the OIDC estate and wipe its volumes (incl. the Keycloak realm)
 	$(OIDC) down -v
 
-oidc-status:
+oidc-status: $(OIDC_ENV)
 	$(OIDC) ps
 
-oidc-logs:     ## follow the OIDC estate's logs
+oidc-logs: $(OIDC_ENV)  ## follow the OIDC estate's logs
 	$(OIDC) logs -f orchestration identity keycloak
 
 $(JAR): pom.xml $(shell find src/main -type f 2>/dev/null)

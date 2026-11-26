@@ -20,7 +20,7 @@
 # Trimmed from camunda-distributions' camunda-8.10/docker-compose-full.yaml to the five services
 # the demo needs, dropping connectors, optimize, hub and mailpit. It differs from the EC2 bundle
 # only because nothing terminates TLS here: an http front channel, no awslogs or CloudWatch
-# agent, and local-only literals in camunda/oidc/camunda-oidc.env instead of SSM + Secrets
+# agent, and local-only secrets in camunda/oidc/camunda-oidc.env (gitignored; `make oidc-env`) instead of SSM + Secrets
 # Manager.
 #
 # Host ports clash with docker-compose.yml by design (8080, 26500, 9600): both carry a Camunda,
@@ -173,11 +173,11 @@ services:
       - "18080:18080"
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?run make oidc-env}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/${POSTGRES_DB:-keycloak}
       KC_DB_USERNAME: ${POSTGRES_USER:-keycloak}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-REMOVED}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?run make oidc-env}
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: 18080
       KC_HTTP_RELATIVE_PATH: /auth
@@ -218,7 +218,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-keycloak}
       POSTGRES_USER: ${POSTGRES_USER:-keycloak}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-REMOVED}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run make oidc-env}
     # Not published: nothing outside the stack needs it, and 5432 stays free on the host.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
